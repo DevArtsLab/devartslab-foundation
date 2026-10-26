@@ -17,13 +17,17 @@ roadmap.
    model, agent orchestration, master repository layout, roadmap.
 2. [md/PRE-DEVELOPMENT.md](md/PRE-DEVELOPMENT.md): what a project must
    produce before code, with document outlines and exit criteria.
-3. [REPO_INDEX.md](REPO_INDEX.md): what lives where in this repository.
+3. [md/CONFIG-AND-SECRETS.md](md/CONFIG-AND-SECRETS.md): where
+   configuration, PII, and secrets live across local, staging, production,
+   and distributed products, with the per-platform store inventory.
+4. [REPO_INDEX.md](REPO_INDEX.md): what lives where in this repository.
 
 ## Status
 
-- Revision 2 (research edition), facts verified 2026-10-21 against
-  developers.cloudflare.com. Quantitative claims decay; see MEGA-PLAN
-  Section 2.2 for the re-verification policy and Section 22 for sources.
+- Revision 3 (reuse and control edition), facts verified 2026-10-21 and
+  2026-10-25 against developers.cloudflare.com and the vendor docs in the
+  source registers. Quantitative claims decay; see MEGA-PLAN Section 2.2
+  for the re-verification policy and Section 22 for sources.
 - License: to be decided before this repository is published (MEGA-PLAN
   open question Q4).
 - Work is tracked in Linear (DevArts Lab workspace).

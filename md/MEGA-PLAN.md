@@ -7,7 +7,7 @@
 
 | Field          | Value                                                                  |
 | -------------- | ---------------------------------------------------------------------- |
-| Status         | Living document, revision 2 (research edition)                         |
+| Status         | Living document, revision 3 (reuse and control edition)                |
 | Audience       | Lab engineers, client developers, agents (human and machine readers)   |
 | Scope          | Platform research, architecture, decisions, guardrails, governance     |
 | Not in scope   | Code, configuration files, implementation guides (see PRE-DEVELOPMENT) |
@@ -28,7 +28,7 @@
 6. Local development and environment parity model
 7. Environment model: dev, preview, production
 8. Delivery lifecycle as a durable Workflow
-9. Foundation decisions D1 to D10
+9. Foundation decisions D1 to D15
 10. Guardrails
 11. Data governance
 12. Cost model
@@ -42,10 +42,18 @@
 20. Open questions
 21. Glossary
 22. Source register
+23. Administrative management interface
 
 - Appendix A: ADR template
 - Appendix B: Audit event catalog (baseline)
 - Appendix C: Project start checklist
+
+Companion research documents in `md/`:
+
+- [CONFIG-AND-SECRETS.md](CONFIG-AND-SECRETS.md): the centralized
+  configuration, PII, and secret architecture across local, staging,
+  production, and distributed products, plus the per-platform secret-store
+  inventory. Expands D14.
 
 ---
 
@@ -146,18 +154,21 @@ end of this file. A refinement pass should also be logged in Linear.
 Each principle states the rule, the reason it exists, the concrete
 consequence for projects, and how compliance is checked.
 
-| #   | Principle                                             | Why                                                                                        | Consequence                                                                                               | How checked                                                      |
-| --- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| 1   | Same runtime locally and in production                | Most "works on my machine" defects are runtime divergence                                  | `wrangler dev` or the Vite plugin on `workerd`; local D1, KV, R2, DO, Queues emulated by Miniflare        | Phase 1 exit: identical test suite passes locally and in Preview |
-| 2   | Environment differences live in configuration         | Branching code on environment is untestable and leaks                                      | Bindings swap per environment and per Preview in `wrangler.jsonc`; no `if (prod)` in application code     | Code search for environment conditionals in review               |
-| 3   | Durable state before agent memory                     | Agent context is ephemeral and unauditable                                                 | Every decision, artifact, and step lives in D1, R2, DO storage, or Workflow state, never only in a prompt | Resumability test: kill and resume an agent run                  |
-| 4   | Every action is auditable                             | Compliance and incident response need a complete trail                                     | Tail Worker plus Workers Logs capture tool calls and state changes; Appendix B event catalog              | Audit log verification at Phase 2 and 3 exits                    |
-| 5   | Isolation is layered                                  | One isolation mechanism is never enough for untrusted code and multi-tenant data           | Per-Worker dispatch, per-entity Durable Objects, sandboxed execution for generated code                   | Threat model review (Section 14) per project                     |
-| 6   | Smallest product set that fits                        | Each added product is a cost, a limit surface, and a learning burden                       | Add a Cloudflare product only against a named requirement; prefer Workers Cache before KV caching         | ADR required for any product outside the tier default            |
-| 7   | Secrets never touch files in production               | File-borne secrets leak through VCS, CI logs, and agent context                            | `wrangler secret` or Secrets Store bindings in prod; `.dev.vars` locally and gitignored                   | Pre-push secret scan (lab `devartslab-code-review` skill)        |
-| 8   | Prefer bindings over REST calls                       | REST adds auth, latency, and rate-limit exposure (1200 requests per 5 minutes per account) | Reach D1, KV, R2, Queues, AI, Secrets through bindings; REST only for control-plane automation            | Review flag per `workers-best-practices` anti-patterns           |
-| 9   | Protect against runaway spend                         | Agents and public endpoints can create denial-of-wallet                                    | `limits.cpu_ms` set deliberately; AI Gateway spend limits; Queues backpressure; WAF rate limits           | Cost guardrail checklist at launch gate                          |
-| 10  | Documents are the interface between humans and agents | Agents act on what is written; undocumented intent is lost                                 | `md/` document set in every repo, this plan as root; ADRs for every deviation                             | REPO_INDEX and ADR presence in repository audit                  |
+| #   | Principle                                             | Why                                                                                        | Consequence                                                                                                                                  | How checked                                                                  |
+| --- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| 1   | Same runtime locally and in production                | Most "works on my machine" defects are runtime divergence                                  | `wrangler dev` or the Vite plugin on `workerd`; local D1, KV, R2, DO, Queues emulated by Miniflare                                           | Phase 1 exit: identical test suite passes locally and in Preview             |
+| 2   | Environment differences live in configuration         | Branching code on environment is untestable and leaks                                      | Bindings swap per environment and per Preview in `wrangler.jsonc`; no `if (prod)` in application code                                        | Code search for environment conditionals in review                           |
+| 3   | Durable state before agent memory                     | Agent context is ephemeral and unauditable                                                 | Every decision, artifact, and step lives in D1, R2, DO storage, or Workflow state, never only in a prompt                                    | Resumability test: kill and resume an agent run                              |
+| 4   | Every action is auditable                             | Compliance and incident response need a complete trail                                     | Tail Worker plus Workers Logs capture tool calls and state changes; Appendix B event catalog                                                 | Audit log verification at Phase 2 and 3 exits                                |
+| 5   | Isolation is layered                                  | One isolation mechanism is never enough for untrusted code and multi-tenant data           | Per-Worker dispatch, per-entity Durable Objects, sandboxed execution for generated code                                                      | Threat model review (Section 14) per project                                 |
+| 6   | Smallest product set that fits                        | Each added product is a cost, a limit surface, and a learning burden                       | Add a Cloudflare product only against a named requirement; prefer Workers Cache before KV caching                                            | ADR required for any product outside the tier default                        |
+| 7   | Secrets never touch files in production               | File-borne secrets leak through VCS, CI logs, and agent context                            | `wrangler secret` or Secrets Store bindings in prod; `.dev.vars` locally and gitignored                                                      | Pre-push secret scan (lab `devartslab-code-review` skill)                    |
+| 8   | Prefer bindings over REST calls                       | REST adds auth, latency, and rate-limit exposure (1200 requests per 5 minutes per account) | Reach D1, KV, R2, Queues, AI, Secrets through bindings; REST only for control-plane automation                                               | Review flag per `workers-best-practices` anti-patterns                       |
+| 9   | Protect against runaway spend                         | Agents and public endpoints can create denial-of-wallet                                    | `limits.cpu_ms` set deliberately; AI Gateway spend limits; Queues backpressure; WAF rate limits                                              | Cost guardrail checklist at launch gate                                      |
+| 10  | Documents are the interface between humans and agents | Agents act on what is written; undocumented intent is lost                                 | `md/` document set in every repo, this plan as root; ADRs for every deviation                                                                | REPO_INDEX and ADR presence in repository audit                              |
+| 11  | Build once, reuse everywhere                          | Work rebuilt per project is work paid for twice and maintained in parallel                 | Libraries, packages, UI components, and agent rules ship through the lab registry (D11); per-app copies need an ADR                          | Duplication review: a second implementation of the same concern fails review |
+| 12  | Identity is a variable, never a literal               | A business name, domain, or brand hardcoded into the estate makes a rename a rewrite       | One identity manifest per product; brand strings resolve from it (D12)                                                                       | CI check for forbidden literals outside the manifest                         |
+| 13  | No silent fallback                                    | A degradation nobody can see is a defect that persists                                     | Every automatic switch (provider, cache, limit, feature) surfaces in the administrative interface and emits an audit event (Section 23, D15) | Fallback test: trigger each one and observe it in the interface              |
 
 ## 4. Platform research: the Cloudflare product catalog by concern
 
@@ -511,7 +522,7 @@ Mechanics:
 - Because completed Workflow state is retained for 30 days, the final step
   exports a project summary record to D1 and the full step log to R2.
 
-## 9. Foundation decisions D1 to D10
+## 9. Foundation decisions D1 to D15
 
 Each decision has a default, the alternatives, the criteria that would
 change it, and the facts that drove it. Projects instantiate these as ADRs
@@ -608,6 +619,160 @@ production deploy on merge to main with human approval in the Workflow gate;
 gradual deployments for lab-owned Workers (not available in WfP namespaces,
 where rollout is implemented in the dispatch Worker); rollback rehearsed
 before launch with the understanding that data is not rolled back.
+
+### D11. Design system and component distribution
+
+Default: shadcn/ui on Tailwind CSS. Components are copied into the
+repository and owned by the lab, not consumed as a black-box dependency, so
+every app can evolve them without forking a vendor.
+
+| Option                            | Why not the default                                                                                                               |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Atlassian Design System           | Strong for dense table and form workloads, but enterprise-opinionated, heavy, and hard to rebrand per client (conflicts with D12) |
+| MUI, Chakra, Mantine              | Runtime weight and a recognizable generic look; theming fights the library instead of using it                                    |
+| Radix or Base UI with bespoke CSS | Maximum control, but rebuilds what shadcn already provides; more agent effort per component                                       |
+| Hand-written CSS per app          | No leverage; this is the state being retired                                                                                      |
+
+Deciding requirements, in order: components must be ownable and reusable
+across every lab app and client product (D12); the stack must be
+rebrandable through tokens rather than overrides; and the component corpus
+must be one that code-generating agents write fluently, because frontend
+work is agent-assisted by design (Section 15).
+
+Distribution is the load-bearing half of this decision. The lab runs its
+own private shadcn registry so one component set serves every application:
+
+- A namespaced registry (for example `@devartslab`) is declared in each
+  project's `components.json`; components install with
+  `npx shadcn add @devartslab/<item>`.
+- Registries are authenticated with a bearer token or API key supplied
+  through an environment variable, never committed (see D14). Namespaces
+  allow a public tier, an internal tier, and a client-licensed tier side by
+  side.
+- A registry item can carry components, hooks, pages, config, and agent
+  rules, so the registry distributes conventions and not only UI.
+- Community registries from the shadcn Registry Directory may be used for
+  advanced surfaces, subject to the supply-chain rule in Section 14: review
+  the code on install and prefer versions published at least 7 days ago.
+
+Any other design system or component library requires an ADR naming the
+specific use case it serves and why the lab registry cannot.
+
+### D12. Product identity and white-label readiness
+
+Default: no business name, brand string, domain, legal entity, or contact
+address is hardcoded anywhere in code, configuration, documentation
+templates, email bodies, or UI. All of it resolves from one identity
+manifest per product.
+
+The requirement this satisfies: if the lab operates under a new name, or a
+new venture starts, the accumulated research, design, code, and
+documentation must be reusable without recreation. `devartslab` is a
+variable, not a constant.
+
+| Concern                 | Rule                                                                                                                                                                                          |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Identity manifest       | One file per product resolves legal name, display name, slug, primary domain, email domain, support addresses, social handles, logo and favicon asset paths, theme tokens, and license holder |
+| Code and UI             | Read identity through a typed accessor; literal brand strings in components are a review failure                                                                                              |
+| Theme                   | Brand expression lives in design tokens (D11), so rebranding is a token swap plus an asset swap                                                                                               |
+| Documents and templates | Rendered from the manifest, following the existing org and consultant template pattern already proven in the RTS repository                                                                   |
+| Infrastructure          | Domains, account names, and bucket or database names are derived from the slug, never typed twice                                                                                             |
+| Verification            | A CI check greps the tree for forbidden literals (current business name, current domain) outside the manifest and asset files                                                                 |
+
+Consequence: the scaffold generator (Phase 5) takes the identity manifest
+as its primary input. The same generator produces a lab product and a
+client-branded product from identical sources.
+
+### D13. Authentication and authorization from day one
+
+Default: every project declares its authentication and authorization model
+before its first route exists, and implements it from the lab's shared auth
+package rather than per-app reinvention.
+
+Three planes are designed separately and never conflated:
+
+| Plane          | Subjects                                | Default mechanism                                                                                                                                                                                     |
+| -------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| End user       | Customers and product users             | Identity-provider first per LAB-ADR-0001: no shared credential database; each app keeps its own profile table keyed by the IdP subject claim; the integration module ships through the registry (D11) |
+| Administrative | Lab staff, operators, internal surfaces | Cloudflare Access in front of every admin and internal surface (D9); Access identity is the approver identity in Workflow gates                                                                       |
+| Machine        | Agents, CI, service-to-service          | Scoped API tokens and OAuth-secured MCP servers with least-privilege tool scopes (Section 10)                                                                                                         |
+
+Authorization rules that hold regardless of provider:
+
+- Authorization is evaluated server-side, always. A client-side check is a
+  display concern, never a control.
+- Permissions are expressed as roles plus scopes against resources, not as
+  boolean `isAdmin` flags.
+- Tenant isolation is structural, per D1 and D3: a request carries a tenant
+  identity and reaches only that tenant's Durable Object or database.
+- Every authorization denial and every privilege change emits an audit
+  event (Appendix B).
+- Session, token, and refresh handling live in the shared module, so a
+  vulnerability is fixed once for all products.
+
+The identity layer is centralized while credential storage is not. This is
+the substance of [LAB-ADR-0001](adr/LAB-ADR-0001-centralized-identity-layer.md)
+(accepted 2026-10-25, lab-wide):
+
+- Internal products federate through SSO plus Cloudflare Access, so there
+  is no user database to build or operate.
+- Client services use a multi-tenant identity provider with one isolated
+  tenant per client, which keeps client end-user data with the client and
+  preserves a clean handoff path.
+- A single shared authentication database is explicitly rejected: it is one
+  point of compromise across every client, and it blocks offboarding.
+- Administrative observability is a telemetry concern, met with identity
+  provider audit logs and error tracking, not by co-locating credentials.
+
+Consequence: auth is a Phase 1 spine concern, not a pre-launch retrofit.
+What ships through the registry (D11) is the integration module, session
+handling, and authorization policy evaluation, which makes it a reusable
+asset under D12 rather than per-product work. Credentials themselves never
+live in lab-built tables.
+
+### D14. Configuration and secret management
+
+Default: one centralized configuration and secret store per environment
+plane, with repositories holding references and never values.
+
+| Plane                       | Store                                                                                                     | Rule                                                                                                                 |
+| --------------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Local development           | A single workspace-root store outside every repository, resolved by relative path                         | Deleting any repository must not lose its secrets; moving the workspace root must not break resolution               |
+| Staging and production      | Platform-native stores: Worker secrets per Worker, Secrets Store for shared and account-level values (D8) | One source of truth, synced outward; never hand-copied between dashboards                                            |
+| Distributed and self-hosted | The user's machine or deployment                                                                          | The lab holds nothing; credentials never traverse lab infrastructure (self-hosted products, career-tracker ADR-0016) |
+
+Non-negotiables:
+
+- PII is never committed to any repository, including private and
+  local-only repositories, because a remote can be added later.
+- Long-lived plaintext secrets on disk are a finding, not a convention.
+  Material at rest is encrypted (SOPS with age for file-based config, the
+  OS keychain or a password manager for human-held material).
+- Secrets never enter agent context, prompts, or logs (Principle 7).
+- Every secret has a named owner, a scope, and a rotation trigger.
+
+Full architecture, platform-by-platform secret-store inventory, and the
+staging and production research strategy live in
+[CONFIG-AND-SECRETS.md](CONFIG-AND-SECRETS.md).
+
+### D15. Model provider and local inference policy
+
+Default for lab and delivery engineering work: the Devin team-plan quota is
+the primary agent capacity. A local model (Ollama or equivalent) is used
+only when that quota is exhausted.
+
+| Rule                 | Statement                                                                                                                        |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Primary              | Devin sessions, within the team plan, for agentic development and research work                                                  |
+| Fallback             | Local inference engages only on quota exhaustion, not as a cost optimization and not as a default                                |
+| Never silent         | Switching providers is an explicit, visible, administered state change (Section 23), and emits an audit event                    |
+| Product inference    | In-app AI calls route through AI Gateway (Section 4.4) with spend limits, independent of the engineering-capacity policy above   |
+| Self-hosted products | Products distributed to users may run local inference as their primary path when a project ADR says so (career-tracker ADR-0016) |
+
+Rationale: quality of agentic engineering output is the constraint that
+matters most, and a local fallback that activates quietly would degrade it
+without anyone noticing. Visibility is the point, which is why this
+decision depends on Section 23 rather than on a code-level fallback chain.
 
 ## 10. Guardrails
 
@@ -800,7 +965,7 @@ reconciles the earlier `md/` and `docs/` variants into a single tree;
   md/
     MEGA-PLAN.md                copy or pointer to this plan at the adopted revision
     PRE-DEVELOPMENT.md          pointer to the blueprint; filled checklist for this project
-    adr/                        ADR-0001 dispatch (D1), ADR-0002 agent state (D2), ADR-0003 storage (D3), ... one per foundation decision plus project-specific
+    adr/                        ADR-0001 to ADR-0015 reserved for foundation decisions D1 to D15 in order; project-specific ADRs start at ADR-0016 (see numbering rule below)
     research/                   market, competitors, personas, requirements (Research phase)
     design/                     PRD, user flows, wireframes, visual direction
     architecture/               C4 diagrams, data models, environment map, cost estimate
@@ -815,6 +980,36 @@ reconciles the earlier `md/` and `docs/` variants into a single tree;
 Directories are created when the tier needs them; a T0 site has no
 `agents/`. The PRE-DEVELOPMENT blueprint defines what each document
 contains and when it is required.
+
+### 16.1 ADR numbering and placement
+
+Numbers are allocated once, lab-wide, so that an ADR reference means the
+same thing in every repository.
+
+| Range                     | Holds                                                                                                                  | Lives in                                |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| `ADR-0001` to `ADR-0015`  | One per foundation decision D1 to D15, in order, recording the project's instantiation (accepted default or deviation) | The implementing repository's `md/adr/` |
+| `ADR-0016` and upward     | Project-specific decisions with no foundation counterpart                                                              | The implementing repository's `md/adr/` |
+| `LAB-ADR-0001` and upward | Lab-wide decisions that bind every project but are not themselves foundation decisions                                 | This repository's `md/adr/`             |
+
+Rules:
+
+- The reserved block is reserved even when empty. A project that accepts
+  the D7 default still files `ADR-0007` stating that it accepted it, so the
+  absence of a file always means "not yet decided" rather than "decided
+  silently".
+- A decision that binds more than one project is a `LAB-ADR` in the
+  foundation, never an ADR inside one product. A lab-wide decision stored
+  in a product repository is invisible to every other project and ships
+  with that product if it is ever distributed.
+- When a decision's scope grows from project to lab-wide, it is promoted:
+  moved to this repository, renumbered in the `LAB-ADR` range, and its
+  provenance (origin repository and commit) recorded in the file, because a
+  cross-repository move cannot carry git history.
+- When a `LAB-ADR` answers an open question in Section 20, the question is
+  marked resolved with a pointer to it.
+- Extending the foundation decision set (a new D-number) extends the
+  reserved range; it does not renumber existing project ADRs.
 
 Scaffold generation (roadmap Phase 5) is a template repository or a
 `create` style generator that stamps this tree with the project name, tier,
@@ -861,15 +1056,15 @@ and chosen dispatch model. Its implementation is out of scope here.
 
 ## 20. Open questions
 
-| ID  | Question                                                                                              | Owner          | Needed by                                       |
-| --- | ----------------------------------------------------------------------------------------------------- | -------------- | ----------------------------------------------- |
-| Q1  | Per-client metering and pricing model once Workers for Platforms is live (Analytics Engine as meter?) | Lab lead       | Phase 4 design                                  |
-| Q2  | Which AI providers anchor the stack, in what failover order, BYOK or Unified Billing                  | Lab lead       | Phase 3 design                                  |
-| Q3  | Is client code execution (Dynamic Workers or Containers) offered to clients or internal only          | Lab lead       | Phase 4 design                                  |
-| Q4  | Public license for the framework repository                                                           | Lab lead       | Before Phase 5 and before any push of this repo |
-| Q5  | OTel export versus Tail Worker as the primary audit path when a client has its own stack              | Per client ADR | Phase 2                                         |
-| Q6  | Adopt the `cf` CLI once stable, and migration plan from Wrangler                                      | Lab lead       | Re-check monthly                                |
-| Q7  | End-user authentication default (OpenAuth on KV or Access for SaaS)                                   | Per client ADR | Phase 2                                         |
+| ID  | Question                                                                                                                                                                                                                                                                             | Owner          | Needed by                                       |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------- | ----------------------------------------------- |
+| Q1  | Per-client metering and pricing model once Workers for Platforms is live (Analytics Engine as meter?)                                                                                                                                                                                | Lab lead       | Phase 4 design                                  |
+| Q2  | Which AI providers anchor the stack, in what failover order, BYOK or Unified Billing                                                                                                                                                                                                 | Lab lead       | Phase 3 design                                  |
+| Q3  | Is client code execution (Dynamic Workers or Containers) offered to clients or internal only                                                                                                                                                                                         | Lab lead       | Phase 4 design                                  |
+| Q4  | Public license for the framework repository                                                                                                                                                                                                                                          | Lab lead       | Before Phase 5 and before any push of this repo |
+| Q5  | OTel export versus Tail Worker as the primary audit path when a client has its own stack                                                                                                                                                                                             | Per client ADR | Phase 2                                         |
+| Q6  | Adopt the `cf` CLI once stable, and migration plan from Wrangler                                                                                                                                                                                                                     | Lab lead       | Re-check monthly                                |
+| Q7  | ~~End-user authentication default~~ Resolved 2026-10-25 by LAB-ADR-0001: identity-provider first, no shared credential database; SSO plus Access for internal, multi-tenant IdP per client for client services. Remaining per-project choice is which IdP, recorded as a project ADR | Resolved       | Resolved                                        |
 
 ## 21. Glossary
 
@@ -933,6 +1128,114 @@ All sources read on 2026-10-21 in markdown form. Re-verify per Section 2.2.
 | Cloudflare skills bundle         | <https://github.com/cloudflare/skills>                                                  |
 | cagent (docker-agent)            | <https://github.com/docker/docker-agent>                                                |
 
+Added revision 3 (read 2026-10-25):
+
+| Topic                               | URL                                                                      |
+| ----------------------------------- | ------------------------------------------------------------------------ |
+| shadcn registry directory           | <https://ui.shadcn.com/docs/directory>                                   |
+| shadcn registry authentication      | <https://ui.shadcn.com/docs/registry/authentication>                     |
+| shadcn registry namespaces          | <https://ui.shadcn.com/docs/registry/namespace>                          |
+| Cloudflare Secrets Store (overview) | <https://developers.cloudflare.com/secrets-store/>                       |
+| Flagship feature flags              | <https://developers.cloudflare.com/flagship/>                            |
+| GitHub Actions secrets              | <https://docs.github.com/en/actions/concepts/security/secrets>           |
+| Devin secrets and site cookies      | <https://docs.devin.ai/product-guides/secrets>                           |
+| Devin environment best practices    | <https://docs.devin.ai/enterprise/environment-management/best-practices> |
+| SOPS                                | <https://github.com/age-sops/sops>                                       |
+| 1Password service accounts          | <https://www.1password.dev/service-accounts>                             |
+
+---
+
+## 23. Administrative management interface
+
+The lab is operated by looking at it, not by reading documentation. This
+section defines the visual control plane that makes platform state
+observable and changeable.
+
+### 23.1 Why this exists as a foundation concern
+
+Every decision in this plan creates state that someone must see and
+control: which features are live, which provider is serving inference
+(D15), which agents are scheduled (Section 15), what spend has accrued
+(Section 12), which secrets exist (D14). Without one interface, that state
+is spread across vendor dashboards, config files, and log queries, and the
+only way to answer "what is the system doing right now" is to read code.
+
+The governing rule: **no silent fallback anywhere**. Any automatic
+degradation (provider switch, cache bypass, queue backpressure, feature
+disable) must surface as visible state in this interface and emit an audit
+event. Fallback behavior is permitted; invisible fallback behavior is not.
+
+### 23.2 Control surfaces
+
+| Surface             | What it shows                                                                        | What it controls                                                               |
+| ------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| Feature flags       | Every flag, scope, current value, targeting rule, rollout percentage                 | Toggle on and off; target a tenant, user, or percentage; emergency kill switch |
+| Model and provider  | Active provider, Devin quota consumed and remaining, fallback state (D15)            | Explicit provider selection; enable or disable local inference                 |
+| Agents              | Registered agents, schedules, last run, outcome, session cost (Section 15)           | Enable, disable, pause, run now, change schedule                               |
+| Delivery lifecycle  | Each engagement's Workflow instance, current phase, pending gates (Section 8)        | Approve or reject gates with Access identity recorded                          |
+| Environments        | Worker versions per environment, Preview inventory, binding map, drift warnings      | Promote, roll back, delete stale Previews                                      |
+| Cost and limits     | Spend by product, AI Gateway spend against caps, limits approached (Sections 12, 13) | Adjust spend caps and CPU limits; set alert thresholds                         |
+| Audit feed          | Live stream of Appendix B events, filterable by tenant, actor, and event             | Nothing; read-only by design                                                   |
+| Secret inventory    | Secret names, scopes, owners, age, rotation due (D14, never values)                  | Trigger a rotation Workflow                                                    |
+| Tenants and clients | Per-client status, isolation model, metering (D1, Section 11)                        | Suspend, resume, adjust per-client limits                                      |
+| Data governance     | Classification register, retention schedules, restore-test recency (Section 11)      | Trigger a restore test or retention run                                        |
+
+### 23.3 Toggle contract
+
+Every toggle in the interface declares the same metadata, so the interface
+is generated from the registry of toggles rather than hand-built:
+
+| Field          | Meaning                                                                     |
+| -------------- | --------------------------------------------------------------------------- |
+| `id`           | Stable identifier used in code and in audit events                          |
+| `scope`        | lab, project, tenant, or user                                               |
+| `default`      | Value when no override exists                                               |
+| `owner`        | Who is accountable for its state                                            |
+| `kind`         | Release flag (temporary), operational toggle (permanent), or kill switch    |
+| `blast_radius` | What breaks when it is off; shown in the UI before the switch is thrown     |
+| `audit_event`  | Event emitted on change (Appendix B `flag.changed`)                         |
+| `expires_at`   | Required for release flags, so temporary flags do not become permanent debt |
+
+### 23.4 Implementation model
+
+- Flag state lives in Flagship, which provides targeting and percentage
+  rollouts independent of deploys (Section 4.4), so toggling never requires
+  a deployment.
+- The interface itself is a lab-owned Worker with Static Assets, built from
+  the D11 component registry, behind Cloudflare Access (D9). It is a T2
+  surface and inherits every guardrail in Section 10.
+- Reads come from Analytics Engine (metrics and metering), Workers Logs and
+  the audit R2 bucket (events), D1 (project, tenant, and toggle registry),
+  and the Cloudflare API for version, Preview, and binding state.
+- Writes go through the same approval path as everything else: a change
+  with a blast radius above a declared threshold opens a Workflow gate
+  rather than applying immediately.
+- Operating it is itself auditable: the interface is not a back door around
+  Section 10.
+
+### 23.5 Division of responsibility with vendor consoles
+
+The lab interface does not attempt to replace vendor administration. The
+split is explicit so there is no ambiguity about where to act:
+
+| Concern                                                                                      | Where it is administered                                           |
+| -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Agent sessions, machine access, agent secrets, infrastructure and analytics for agentic work | The Devin Administration space (access, infrastructure, analytics) |
+| Cloudflare account resources, DNS, zones, Access policies                                    | The Cloudflare dashboard, or Terraform for declared resources      |
+| Product feature state, tenant state, lifecycle gates, lab-wide toggles                       | The lab administrative interface defined in this section           |
+| Work tracking and decisions                                                                  | Linear (Section 15.3)                                              |
+
+Where a vendor console is authoritative, the lab interface links to it and
+mirrors read-only status rather than duplicating control.
+
+### 23.6 Roadmap placement
+
+This interface is built incrementally alongside the phases in Section 17:
+the audit feed and environment view accompany Phase 1, flags and the model
+and provider toggle accompany Phase 3, and tenant and metering views
+accompany Phase 4. A static read-only version is acceptable in Phase 1;
+write paths require the approval gates described above.
+
 ---
 
 ## Appendix A: ADR template
@@ -970,29 +1273,33 @@ Every project emits at least these events through the Tail Worker or
 application logging. Field names are illustrative; the schema is defined in
 the scaffold.
 
-| Event                            | Emitted when                                    | Minimum fields                                               |
-| -------------------------------- | ----------------------------------------------- | ------------------------------------------------------------ |
-| `request.handled`                | Any Worker invocation completes                 | worker, environment, outcome, cpu_ms, wall_ms, tenant        |
-| `agent.session.started`          | Agents SDK instance created or resumed          | agent, session_id, tenant, trigger                           |
-| `agent.tool.called`              | Any MCP or binding tool invocation              | agent, session_id, tool, scope, duration_ms, outcome         |
-| `agent.model.called`             | Any AI Gateway request                          | gateway, provider, model, tokens_in, tokens_out, cost, cache |
-| `agent.state.changed`            | `setState` or SQL write in an agent             | agent, session_id, keys_changed                              |
-| `workflow.step.completed`        | Workflow step returns                           | workflow, instance_id, step, attempt, duration_ms            |
-| `gate.requested`                 | Workflow waits for approval                     | workflow, instance_id, gate, requested_of                    |
-| `gate.approved`, `gate.rejected` | Approval event received                         | workflow, instance_id, gate, approver (Access identity)      |
-| `data.read`, `data.write`        | Access to client-confidential or regulated data | dataset, class, tenant, actor, operation                     |
-| `data.deleted`                   | Retention or deletion Workflow step runs        | dataset, class, tenant, policy, count                        |
-| `secret.rotated`                 | Secrets Store value replaced                    | secret_name (never value), actor                             |
-| `deploy.completed`               | Production or Preview deployment                | worker, version, environment, actor                          |
-| `sandbox.executed`               | Dynamic Worker or Container run                 | kind, egress_allowed, duration_ms, outcome                   |
-| `limit.hit`                      | CPU, spend, rate, or backlog limit reached      | limit, worker or gateway, value                              |
+| Event                            | Emitted when                                                               | Minimum fields                                               |
+| -------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `request.handled`                | Any Worker invocation completes                                            | worker, environment, outcome, cpu_ms, wall_ms, tenant        |
+| `agent.session.started`          | Agents SDK instance created or resumed                                     | agent, session_id, tenant, trigger                           |
+| `agent.tool.called`              | Any MCP or binding tool invocation                                         | agent, session_id, tool, scope, duration_ms, outcome         |
+| `agent.model.called`             | Any AI Gateway request                                                     | gateway, provider, model, tokens_in, tokens_out, cost, cache |
+| `agent.state.changed`            | `setState` or SQL write in an agent                                        | agent, session_id, keys_changed                              |
+| `workflow.step.completed`        | Workflow step returns                                                      | workflow, instance_id, step, attempt, duration_ms            |
+| `gate.requested`                 | Workflow waits for approval                                                | workflow, instance_id, gate, requested_of                    |
+| `gate.approved`, `gate.rejected` | Approval event received                                                    | workflow, instance_id, gate, approver (Access identity)      |
+| `data.read`, `data.write`        | Access to client-confidential or regulated data                            | dataset, class, tenant, actor, operation                     |
+| `data.deleted`                   | Retention or deletion Workflow step runs                                   | dataset, class, tenant, policy, count                        |
+| `secret.rotated`                 | Secrets Store value replaced                                               | secret_name (never value), actor                             |
+| `flag.changed`                   | Any toggle changed in the admin interface (Section 23)                     | flag_id, scope, from, to, actor, blast_radius                |
+| `provider.switched`              | Model or inference provider changed, manually or on quota exhaustion (D15) | from, to, reason, actor or "automatic"                       |
+| `authz.denied`                   | An authorization check rejects a request (D13)                             | subject, resource, action, policy, tenant                    |
+| `identity.resolved`              | Product identity manifest loaded at build (D12)                            | product_slug, display_name, manifest_version                 |
+| `deploy.completed`               | Production or Preview deployment                                           | worker, version, environment, actor                          |
+| `sandbox.executed`               | Dynamic Worker or Container run                                            | kind, egress_allowed, duration_ms, outcome                   |
+| `limit.hit`                      | CPU, spend, rate, or backlog limit reached                                 | limit, worker or gateway, value                              |
 
 ## Appendix C: Project start checklist
 
 1. Classify the project into a tier (Section 5.3) and record it.
 2. Create the Linear issue tree for the engagement; link the Workflow
    instance ID.
-3. Instantiate ADRs for D1 to D10 from the defaults; mark any deviation.
+3. Instantiate ADRs for D1 to D15 from the defaults; mark any deviation.
 4. Re-verify Section 13 numbers that the design depends on (record the date).
 5. Produce the cost estimate (Section 12) and budget threshold for approvals.
 6. Build the data classification register and retention schedule.
@@ -1001,16 +1308,26 @@ the scaffold.
 9. Draft `wrangler.jsonc` environments and the `previews` block (no
    production bindings in Previews).
 10. Confirm Access policy for Previews and internal surfaces.
-11. Complete PRE-DEVELOPMENT exit criteria; then development begins.
+11. Create the product identity manifest (D12); confirm no brand literals
+    outside it.
+12. Declare the authentication and authorization model for all three planes
+    before the first route (D13).
+13. Register the project's configuration and secret locations in the
+    central store; add no secret to the repository (D14,
+    CONFIG-AND-SECRETS).
+14. Register the project's toggles in the administrative interface
+    (Section 23), each with scope, owner, and blast radius.
+15. Complete PRE-DEVELOPMENT exit criteria; then development begins.
 
 ---
 
 ## Revision log
 
-| Revision | Date       | Change                                                                                                                                                                                                             |
-| -------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1        | 2026-10-21 | Initial plan: principles, map, D1 and D2, guardrails, governance, scaffold, roadmap                                                                                                                                |
-| 2        | 2026-10-21 | Research edition: product catalog by concern, tiers, parity and environment model, D1 to D10, cost and limits, threat model, orchestration model, single scaffold, source register; audit findings DEV-99 resolved |
+| Revision | Date       | Change                                                                                                                                                                                                                                                                                                                                                                                    |
+| -------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1        | 2026-10-21 | Initial plan: principles, map, D1 and D2, guardrails, governance, scaffold, roadmap                                                                                                                                                                                                                                                                                                       |
+| 2        | 2026-10-21 | Research edition: product catalog by concern, tiers, parity and environment model, D1 to D10, cost and limits, threat model, orchestration model, single scaffold, source register; audit findings DEV-99 resolved                                                                                                                                                                        |
+| 3        | 2026-10-25 | Reuse and control edition: D11 design system and private component registry, D12 product identity and white-label readiness, D13 auth and authz from day one, D14 configuration and secret management, D15 model provider policy; Section 23 administrative management interface; principles 11 to 13; CONFIG-AND-SECRETS companion document; new audit events; source register additions |
 
 _Living document: revise after each phase exit and each quarterly fact
 verification. Decisions become ADRs in `md/adr/` of implementing

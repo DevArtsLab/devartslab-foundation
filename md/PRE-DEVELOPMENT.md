@@ -2,18 +2,18 @@
 
 > What a DevArts Lab project must produce before the first line of
 > application code. Companion to [MEGA-PLAN.md](MEGA-PLAN.md), which holds
-> the platform research, the foundation decisions D1 to D10, guardrails,
+> the platform research, the foundation decisions D1 to D15, guardrails,
 > governance, cost model, and the master repository layout. This document
 > turns that plan into a per-project production list with document outlines
 > and exit criteria.
 
 | Field        | Value                                              |
 | ------------ | -------------------------------------------------- |
-| Status       | Living document, revision 2                        |
+| Status       | Living document, revision 3                        |
 | Audience     | Project leads, lab engineers, delivery agents      |
 | Scope        | Research, design, architecture, planning artifacts |
 | Not in scope | Code, configuration, implementation                |
-| Depends on   | MEGA-PLAN revision 2 (sections cited inline)       |
+| Depends on   | MEGA-PLAN revision 3 (sections cited inline)       |
 
 ---
 
@@ -94,7 +94,7 @@ targets Cloudflare; local development runs the same `workerd` runtime via
 | Environment map           | dev, preview, prod: which bindings exist in each, which are isolated, what the `previews` block declares (no production bindings), Access policy per environment                        | `md/architecture/environments.md` |
 | Capacity and limits check | Which MEGA-PLAN Section 13 limits the design approaches, with re-verification date                                                                                                      | `md/architecture/capacity.md`     |
 | Cost estimate             | Requests, CPU, storage, AI spend by month; budget threshold for approval gates (MEGA-PLAN Section 12)                                                                                   | `md/architecture/cost.md`         |
-| ADRs                      | One per foundation decision D1 to D10 plus project-specific decisions, using MEGA-PLAN Appendix A                                                                                       | `md/adr/`                         |
+| ADRs                      | One per foundation decision D1 to D15 plus project-specific decisions from ADR-0016, using MEGA-PLAN Appendix A                                                                         | `md/adr/`                         |
 
 ### 4.1 Required foundation ADRs
 
@@ -102,18 +102,27 @@ Every project instantiates these from MEGA-PLAN Section 9 before
 development. "Accept default" is a valid decision but must still be
 recorded with the date the defaults were checked.
 
-| ADR      | Foundation decision          | Lab default (summary)                                                                                                                     |
-| -------- | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| ADR-0001 | D1 Client dispatch model     | Tenant Durable Object inside one Worker; hybrid with Workers for Platforms when a flagship client needs it; Workflows stay in lab Workers |
-| ADR-0002 | D2 Agent state model         | Durable Object per agent session plus Workflow per process; intent written before side effects                                            |
-| ADR-0003 | D3 Storage selection         | D1 relational, DO SQLite per entity, R2 files, KV read-heavy config only                                                                  |
-| ADR-0004 | D4 Configuration and tooling | `wrangler.jsonc`, pinned Wrangler, today's compatibility date                                                                             |
-| ADR-0005 | D5 Frontend stack            | Static Assets with Vite plugin; vinext for Next.js                                                                                        |
-| ADR-0006 | D6 Code execution isolation  | Dynamic Workers with egress blocked; Containers only for Linux needs                                                                      |
-| ADR-0007 | D7 Observability pipeline    | Logs and Traces on; lab Tail Worker; Logpush to R2; Analytics Engine metering                                                             |
-| ADR-0008 | D8 Secrets                   | Worker secrets, Secrets Store for shared, `.dev.vars` local                                                                               |
-| ADR-0009 | D9 Identity and access       | Access on Previews and internal surfaces; end-user auth per project                                                                       |
-| ADR-0010 | D10 CI/CD and release        | Workers Builds, Previews per branch, approval gate to production                                                                          |
+| ADR      | Foundation decision                            | Lab default (summary)                                                                                                                     |
+| -------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| ADR-0001 | D1 Client dispatch model                       | Tenant Durable Object inside one Worker; hybrid with Workers for Platforms when a flagship client needs it; Workflows stay in lab Workers |
+| ADR-0002 | D2 Agent state model                           | Durable Object per agent session plus Workflow per process; intent written before side effects                                            |
+| ADR-0003 | D3 Storage selection                           | D1 relational, DO SQLite per entity, R2 files, KV read-heavy config only                                                                  |
+| ADR-0004 | D4 Configuration and tooling                   | `wrangler.jsonc`, pinned Wrangler, today's compatibility date                                                                             |
+| ADR-0005 | D5 Frontend stack                              | Static Assets with Vite plugin; vinext for Next.js                                                                                        |
+| ADR-0006 | D6 Code execution isolation                    | Dynamic Workers with egress blocked; Containers only for Linux needs                                                                      |
+| ADR-0007 | D7 Observability pipeline                      | Logs and Traces on; lab Tail Worker; Logpush to R2; Analytics Engine metering                                                             |
+| ADR-0008 | D8 Secrets                                     | Worker secrets, Secrets Store for shared, `.dev.vars` local                                                                               |
+| ADR-0009 | D9 Identity and access                         | Access on Previews and internal surfaces; end-user auth per project                                                                       |
+| ADR-0010 | D10 CI/CD and release                          | Workers Builds, Previews per branch, approval gate to production                                                                          |
+| ADR-0011 | D11 Design system and component distribution   | shadcn/ui on Tailwind, components owned in-repo, installed from the lab's private namespaced registry                                     |
+| ADR-0012 | D12 Product identity and white-label readiness | One identity manifest per product; no brand, domain, or legal entity literal outside it                                                   |
+| ADR-0013 | D13 Authentication and authorization           | Three planes separated; identity-provider first with no shared credential database (LAB-ADR-0001); authorization evaluated server-side    |
+| ADR-0014 | D14 Configuration and secret management        | Central store per plane; repository holds references, never values; nothing plaintext at rest                                             |
+| ADR-0015 | D15 Model provider and local inference         | Devin quota primary for engineering work; local inference only on exhaustion, never silently; product inference through AI Gateway        |
+
+Numbering: this block is reserved lab-wide. Project-specific ADRs start at
+`ADR-0016`, and decisions binding more than one project are `LAB-ADR`
+entries in the foundation repository. See MEGA-PLAN Section 16.1.
 
 ## 5. Phase 4: Agent, workflow, and implementation planning
 
@@ -159,7 +168,7 @@ artifacts occupy these directories:
 md/
   MEGA-PLAN.md            adopted revision or pointer
   PRE-DEVELOPMENT.md      this blueprint with the project's filled checklist
-  adr/                    ADR-0001 to ADR-0010 plus project ADRs
+  adr/                    ADR-0001 to ADR-0015 (foundation decisions) plus project ADRs from ADR-0016
   research/               intake, market, competitors, personas, requirements, risks, tier
   design/                 prd, user-flows, wireframes, visual, content
   architecture/           tech-stack, c4, data-models, environments, capacity, cost,
@@ -238,7 +247,7 @@ recorded in the Design gate approval (MEGA-PLAN Section 8):
 
 1. PRD approved with measurable success metrics.
 2. Tier recorded; every product outside the tier has an ADR.
-3. ADR-0001 to ADR-0010 exist (accepted default or deviation), with the date
+3. ADR-0001 to ADR-0015 exist (accepted default or deviation), with the date
    the MEGA-PLAN defaults and relevant limits were re-verified.
 4. C4 and data models committed, every entity mapped to a storage product
    and a data class.
@@ -273,7 +282,7 @@ sets the minimum.
 | Tech stack, C4                              | x                   | x   | x   | x   |
 | Data models, environment map                |                     | x   | x   | x   |
 | Capacity check, cost estimate               | x                   | x   | x   | x   |
-| ADR-0001 to ADR-0010                        | x (accept defaults) | x   | x   | x   |
+| ADR-0001 to ADR-0015                        | x (accept defaults) | x   | x   | x   |
 | Frontend and backend plans                  |                     | x   | x   | x   |
 | Agent cards, workflow definitions           |                     |     | x   | x   |
 | API and MCP contracts                       |                     | x   | x   | x   |
@@ -287,7 +296,8 @@ sets the minimum.
 
 ## Revision log
 
-| Revision | Date       | Change                                                                                                                                                                   |
-| -------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1        | 2026-10-21 | Initial blueprint aligned with MEGA-PLAN revision 1                                                                                                                      |
-| 2        | 2026-10-21 | Aligned with MEGA-PLAN revision 2: single master layout under `md/`, ADR-0001 to ADR-0010, document outlines, tier minimum sets, consistent numbering, ASCII punctuation |
+| Revision | Date       | Change                                                                                                                                                                                                                 |
+| -------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1        | 2026-10-21 | Initial blueprint aligned with MEGA-PLAN revision 1                                                                                                                                                                    |
+| 2        | 2026-10-21 | Aligned with MEGA-PLAN revision 2: single master layout under `md/`, ADR-0001 to ADR-0010, document outlines, tier minimum sets, consistent numbering, ASCII punctuation                                               |
+| 3        | 2026-10-26 | Aligned with MEGA-PLAN revision 3: required ADR set extended to ADR-0001 to ADR-0015 for decisions D11 to D15, reserved-block numbering rule with project ADRs from ADR-0016 and lab-wide decisions as LAB-ADR entries |

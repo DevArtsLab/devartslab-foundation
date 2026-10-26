@@ -3,23 +3,31 @@
 > Single source of truth for what lives in this repository.
 > Regenerate when files or folders are added, removed, or substantially rewritten.
 >
-> **Last updated:** 2026-10-21
+> **Last updated:** 2026-10-25
 
 ## Top-level
 
-| Path            | What it is                                                  |
-| --------------- | ----------------------------------------------------------- |
-| `README.md`     | Entry point: what the foundation is, how to read it, status |
-| `REPO_INDEX.md` | This index                                                  |
-| `.gitignore`    | Hygiene rules (env files, keys, OS junk, editor state)      |
-| `md/`           | Framework documentation set (documentation only, no code)   |
+| Path            | What it is                                                      |
+| --------------- | --------------------------------------------------------------- |
+| `README.md`     | Entry point: what the foundation is, how to read it, status     |
+| `REPO_INDEX.md` | This index                                                      |
+| `.gitignore`    | Hygiene rules (env files, keys, OS junk, editor state)          |
+| `md/`           | Framework documentation set (documentation only, no code)       |
+| `md/adr/`       | Lab-wide decision records (`LAB-ADR-*`) that bind every project |
 
 ## md/
 
-| File                 | What it is                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MEGA-PLAN.md`       | Research mega plan, revision 2: research method and fact decay policy, design principles, Cloudflare product catalog by concern, reference architecture and tiers T0-T3, local parity and environment model, delivery lifecycle as a Workflow, foundation decisions D1-D10, guardrails, data governance, cost model, limits cheat sheet, threat model, agent orchestration model, master repository scaffold, roadmap, risks, open questions, glossary, source register, ADR template, audit event catalog, start checklist |
-| `PRE-DEVELOPMENT.md` | Pre-development blueprint, revision 2: artifacts per phase (research, design, architecture, agent planning, guardrails), required ADR-0001 to ADR-0010, document locations in the master layout, document outlines, exit criteria, tier-based minimum sets                                                                                                                                                                                                                                                                  |
+| File                    | What it is                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MEGA-PLAN.md`          | Research mega plan, revision 3: research method and fact decay policy, 13 design principles, Cloudflare product catalog by concern, reference architecture and tiers T0-T3, local parity and environment model, delivery lifecycle as a Workflow, foundation decisions D1-D15, guardrails, data governance, cost model, limits cheat sheet, threat model, agent orchestration model, master repository scaffold, roadmap, risks, open questions, glossary, source register, administrative management interface, ADR template, audit event catalog, start checklist |
+| `PRE-DEVELOPMENT.md`    | Pre-development blueprint, revision 3: artifacts per phase (research, design, architecture, agent planning, guardrails), required ADR-0001 to ADR-0015, reserved-block numbering rule, document locations in the master layout, document outlines, exit criteria, tier-based minimum sets                                                                                                                                                                                                                                                                           |
+| `CONFIG-AND-SECRETS.md` | Configuration, PII, and secret architecture, revision 1 (expands D14): current-state audit, four-plane model, root-anchored local store and resolution contract, protection at rest, three-tier staging and production recommendation, per-platform secret-store inventory, research strategy and open questions S1-S6                                                                                                                                                                                                                                              |
+
+## md/adr/
+
+| File                                         | What it is                                                                                                                                         |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LAB-ADR-0001-centralized-identity-layer.md` | Lab-wide: centralized identity layer, no shared auth database. Resolves MEGA-PLAN Q7 and underpins D13. Promoted from career-tracker on 2026-10-26 |
 
 ## Not yet present (tracked as open items)
 
