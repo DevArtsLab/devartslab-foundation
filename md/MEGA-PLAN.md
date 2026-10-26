@@ -215,7 +215,7 @@ Section 22.
 
 ### 4.1 Compute and request handling
 
-| Product               | Role                                                           | Notes (verified 2026-10-21)                                                                                                                         |
+| Product               | Role                                                           | Notes (verified 2026-10-26)                                                                                                                         |
 | --------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Workers               | HTTP handlers, APIs, webhooks, scheduled jobs, queue consumers | 128 MB memory per isolate; CPU 30 s default, configurable to 5 min on Paid; 10,000 subrequests per request on Paid; 500 Workers per account on Paid |
 | Workers Static Assets | Serve frontend files from the same Worker                      | Requests to static assets are free and unlimited; 100,000 files per version on Paid; 25 MiB per file                                                |
@@ -234,7 +234,7 @@ the following decision matrix.
 
 | Need                                                      | Product                                   | Deciding requirement                                                                             | Key constraints                                                                                                                                                |
 | --------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Relational application data, SQL, cross-entity queries    | D1                                        | Read-heavy, globally read, lightweight RDBMS without ops                                         | 10 GB per database (not raisable); single-threaded per database; 50,000 databases per account on Paid; read replication available; Time Travel 30 days on Paid |
+| Relational application data, SQL, cross-entity queries    | D1                                        | Read-heavy, globally read, lightweight RDBMS without ops                                         | 10 GB per database (not raisable); single-threaded per database; 50,000 databases per account on Paid (raisable by request); read replication available; Time Travel 30 days on Paid |
 | Per-entity state with strict consistency and coordination | Durable Objects (SQLite)                  | Coordination atom per tenant, session, room, or agent; transactional storage; WebSockets; alarms | 10 GB per object; unlimited objects; soft limit about 1,000 requests per second per object; 500 classes per account on Paid                                    |
 | Configuration, routing metadata, sessions, feature data   | Workers KV                                | Read-heavy, eventually consistent, hot keys served from cache in roughly 0.5 to 10 ms            | 1 write per second per key; not for counters or anything needing immediate consistency                                                                         |
 | Files, uploads, artifacts, exports, logs                  | R2                                        | Object storage, S3-compatible, no egress fees, per-object strong consistency                     | Pair with D1 for searchable metadata; versioning available for artifact retention                                                                              |
@@ -842,7 +842,7 @@ mechanism precisely enough to be verified in configuration review.
 
 ## 12. Cost model
 
-All figures USD, verified 2026-10-21, Workers Paid plan (Standard usage
+All figures USD, verified 2026-10-26, Workers Paid plan (Standard usage
 model). Re-verify before quoting (Section 2.2).
 
 | Item                                                      | Included per month          | Overage                                                                  |
@@ -887,15 +887,17 @@ Consolidated from Section 4; every number is a hint to re-verify.
 | Workers               | `waitUntil` after response                   | 30 s                                                        |
 | Static Assets         | Files per version; file size                 | 100,000; 25 MiB                                             |
 | D1                    | Database size                                | 10 GB (not raisable)                                        |
-| D1                    | Databases per account; storage per account   | 50,000; 1 TB (raisable)                                     |
+| D1                    | Databases per account; storage per account   | 50,000 (raisable); 1 TB (raisable)                          |
 | D1                    | Time Travel                                  | 30 days; 10 restores per 10 min per database                |
 | D1                    | Queries per invocation                       | 1,000                                                       |
 | D1                    | Columns; bound params; statement length      | 100; 100; 100 KB                                            |
+| D1                    | Max row, string, or BLOB size                | 2 MB                                                        |
 | D1                    | Query duration                               | 30 s                                                        |
 | Durable Objects       | Storage per object                           | 10 GB (SQLite)                                              |
 | Durable Objects       | Classes per account                          | 500                                                         |
 | Durable Objects       | Throughput per object                        | about 1,000 requests per second (soft)                      |
 | Durable Objects       | WebSocket message (received)                 | 32 MiB                                                      |
+| Queues                | Queues per account                           | 10,000                                                      |
 | Queues                | Message size; retries; batch                 | 128 KB; 100; 100 messages                                   |
 | Queues                | Throughput per queue                         | 5,000 messages per second                                   |
 | Queues                | Retention; backlog                           | up to 14 days; 25 GB                                        |
@@ -905,6 +907,7 @@ Consolidated from Section 4; every number is a hint to re-verify.
 | Workflows             | Steps per instance                           | 10,000 default, 25,000 max                                  |
 | Workflows             | Sleep                                        | 365 days                                                    |
 | Workflows             | Completed state retention                    | 30 days                                                     |
+| Workflows             | Concurrent instances per account             | 50,000 (waiting instances excluded)                         |
 | Workflows             | Instance creation rate                       | 300 per second per account; 100 per second per workflow     |
 | Workflows             | Where it cannot run                          | Workers for Platforms namespaces                            |
 | Previews              | Previews per Worker; deployments per Preview | 500; 100                                                    |
@@ -1214,6 +1217,12 @@ Added revision 3 (read 2026-10-25):
 | SOPS                                | <https://github.com/age-sops/sops>                                       |
 | 1Password service accounts          | <https://www.1password.dev/service-accounts>                             |
 
+Re-verified 2026-10-26 (DEV-109 daily pass; Workers limits, Workers pricing,
+D1 limits, Durable Objects limits, Queues limits, Workflows limits, Previews;
+URLs unchanged from the register above). Corrections applied: D1 databases per
+account is raisable by request; cheat sheet rows added for D1 2 MB row size,
+Queues per account, and Workflows concurrent instances.
+
 ---
 
 ## 23. Administrative management interface
@@ -1400,6 +1409,7 @@ the scaffold.
 | 2        | 2026-10-21 | Research edition: product catalog by concern, tiers, parity and environment model, D1 to D10, cost and limits, threat model, orchestration model, single scaffold, source register; audit findings DEV-99 resolved                                                                                                                                                                        |
 | 3        | 2026-10-25 | Reuse and control edition: D11 design system and private component registry, D12 product identity and white-label readiness, D13 auth and authz from day one, D14 configuration and secret management, D15 model provider policy; Section 23 administrative management interface; principles 11 to 13; CONFIG-AND-SECRETS companion document; new audit events; source register additions |
 | 3a       | 2026-10-26 | Amendment: platform doctrine Section 1.2 (defaults are revisable, adoption path for second platforms, stack-agnostic lifecycle); skills sourcing rule in 15.5; ADR numbering Section 16.1; documentation platform readiness Section 16.2; Q7 resolved by LAB-ADR-0001                                                                                                                     |
+| 3b       | 2026-10-26 | DEV-109 daily verification: Sections 4.1-4.3, 4.7, 12, 13 re-verified against official docs; D1 databases-per-account marked raisable; cheat sheet gained D1 row size, Queues per account, Workflows concurrent instances                                                                                                                 |
 
 _Living document: revise after each phase exit and each quarterly fact
 verification. Decisions become ADRs in `md/adr/` of implementing
