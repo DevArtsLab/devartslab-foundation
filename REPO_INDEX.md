@@ -31,9 +31,9 @@
 
 ## Not yet present (tracked as open items)
 
-| Item          | Why it matters                                                       | Reference              |
-| ------------- | -------------------------------------------------------------------- | ---------------------- |
-| `LICENSE`     | Repository is intended to become public                              | MEGA-PLAN Q4           |
-| `SECURITY.md` | Disclosure contact for a public repo                                 | MEGA-PLAN Section 16   |
-| `AGENTS.md`   | Agent-facing conventions; required by the scaffold this repo defines | MEGA-PLAN Section 15.5 |
-| Git remote    | Local-only repository; no push yet                                   | LAB_INDEX housekeeping |
+| Item          | Why it matters                                                                | Reference              |
+| ------------- | ----------------------------------------------------------------------------- | ---------------------- |
+| `LICENSE`     | Repository is intended to become public                                       | MEGA-PLAN Q4           |
+| `SECURITY.md` | Disclosure contact for a public repo                                          | MEGA-PLAN Section 16   |
+| `AGENTS.md`   | Agent-facing conventions; required by the scaffold this repo defines          | MEGA-PLAN Section 15.5 |
+| Git remote    | `DevArtsLab/devartslab-foundation` on `master`; local commits ahead of origin | LAB_INDEX housekeeping |

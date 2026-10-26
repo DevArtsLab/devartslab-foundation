@@ -118,6 +118,42 @@ behind this choice, in order:
 
 The trade-offs accepted with this choice are listed in Section 18.
 
+### 1.2 Platform doctrine: defaults are revisable
+
+Cloudflare-native is the lab's default for hosted production work. It is a
+default, not a boundary. The lab is not restricted to Cloudflare, or to any
+named platform, framework, or agent runtime, and this plan is the operating
+system for choosing tools rather than a mandate for one stack.
+
+Rules that keep flexibility honest:
+
+- Every engagement selects tools on evidence, not habit. The deciding
+  requirement is written down before the tool is named; this is the same
+  pattern used throughout Section 4.
+- Section 4 is the research catalog for the Cloudflare platform. When the
+  lab adopts a second platform at decision grade (Neuro-SAN for self-hosted
+  agent runtime, n8n for client workflow automation, Docker Compose for
+  product distribution), it earns a parallel catalog section with the same
+  discipline: verified facts, limits, cost shape, deciding requirements.
+- A platform enters the plan through a defined path: living research
+  ticket, then a decision record, then a catalog entry. It never enters by
+  silent adoption.
+- The delivery lifecycle in Section 8 is stack-agnostic. Research, Design,
+  Development, Launch, and Operate phases, their artifacts, and their
+  approval gates hold whether the runtime is Workers, containers, a user's
+  machine, or a client-managed service.
+- Deviation is cheap when it is recorded. An engagement that picks a
+  non-default platform files one ADR naming the deciding requirement and
+  the exit or fallback path; nothing else changes.
+- The discipline that does not flex: Linear is the system of record,
+  secrets never touch repositories, documents are the interface between
+  humans and agents, and nothing falls back silently (Principle 13). These
+  hold under any stack.
+
+The result is one SDLC with a preferred spine, not a walled garden: the
+plan navigates to the best tool for the requirement at hand and records
+why, so the next engagement inherits the research rather than repeating it.
+
 ## 2. Research method and fact decay policy
 
 ### 2.1 Method
@@ -943,6 +979,14 @@ Repository: <https://github.com/docker/docker-agent> (formerly
   repo: commands, verification steps, forbidden actions, Linear tracking.
 - `REPO_INDEX.md` lists what lives where and is regenerated on change.
 - `md/` holds the plan, ADRs, agent cards, governance register, runbooks.
+- Skills resolve by name from the user-global skills directory
+  (`~/.agents/skills/`), never by vendoring copies into repositories. A
+  repository declares the skills it needs in `AGENTS.md`. Installed copies
+  under tool-specific directories (for example `~/.claude/skills/`) are
+  generated downstream artifacts, not a second source of truth, and drift
+  between them is checked, not assumed away. A repository that must be
+  self-contained distributes its skills through a registry, not through a
+  copied file.
 
 ## 16. Repository scaffold (master layout)
 
@@ -1010,6 +1054,33 @@ Rules:
   marked resolved with a pointer to it.
 - Extending the foundation decision set (a new D-number) extends the
   reserved range; it does not renumber existing project ADRs.
+
+### 16.2 Documentation platform readiness
+
+The lab operates a public documentation platform. Publication is a status,
+not an assumption: every document is internal by default, and joining the
+platform is an explicit, recorded transition.
+
+| Status      | Meaning                                      |
+| ----------- | -------------------------------------------- |
+| `refining`  | Under active refinement; not for publication |
+| `ready`     | Reviewed and cleared; eligible to publish    |
+| `published` | Live on the platform                         |
+
+Rules:
+
+- Readiness is tracked once, in `LAB_INDEX.md` at the workspace root, not
+  duplicated into each repository and not duplicated inside this document.
+- Research and UX documentation under refinement stays internal until its
+  repo owner marks it ready; a living document (like this plan or a DEV-47
+  style research ticket) may carry per-section readiness since sections
+  finish at different times.
+- A document that names private paths, orgs, people, or client details is
+  published only after the identity and privacy check implied by D12 and
+  Section 11.
+- Git submodule and vendoring approaches to shared documentation are
+  rejected: repos link to a single authoritative copy at a pinned adopted
+  revision in `AGENTS.md`, they do not embed it.
 
 Scaffold generation (roadmap Phase 5) is a template repository or a
 `create` style generator that stamps this tree with the project name, tier,
@@ -1328,6 +1399,7 @@ the scaffold.
 | 1        | 2026-10-21 | Initial plan: principles, map, D1 and D2, guardrails, governance, scaffold, roadmap                                                                                                                                                                                                                                                                                                       |
 | 2        | 2026-10-21 | Research edition: product catalog by concern, tiers, parity and environment model, D1 to D10, cost and limits, threat model, orchestration model, single scaffold, source register; audit findings DEV-99 resolved                                                                                                                                                                        |
 | 3        | 2026-10-25 | Reuse and control edition: D11 design system and private component registry, D12 product identity and white-label readiness, D13 auth and authz from day one, D14 configuration and secret management, D15 model provider policy; Section 23 administrative management interface; principles 11 to 13; CONFIG-AND-SECRETS companion document; new audit events; source register additions |
+| 3a       | 2026-10-26 | Amendment: platform doctrine Section 1.2 (defaults are revisable, adoption path for second platforms, stack-agnostic lifecycle); skills sourcing rule in 15.5; ADR numbering Section 16.1; documentation platform readiness Section 16.2; Q7 resolved by LAB-ADR-0001                                                                                                                     |
 
 _Living document: revise after each phase exit and each quarterly fact
 verification. Decisions become ADRs in `md/adr/` of implementing
