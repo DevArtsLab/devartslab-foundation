@@ -265,7 +265,7 @@ Lab guidance:
 | --------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Durable Objects | Single-threaded coordination with transactional storage and alarms | Shared state per entity, WebSockets, ordering, scheduled per-entity work                              | One alarm per object (set replaces existing); alarm handler 15 min wall; do not build one global object                                                                                                                                          |
 | Queues          | Decouple producers and consumers; absorb bursts                    | Background jobs, fan-out, retries with backoff, dead-letter handling                                  | 128 KB message; 100 retries; batch up to 100; 5,000 messages per second per queue; retention up to 14 days; 25 GB backlog; consumer 15 min wall; 250 concurrent push consumers                                                                   |
-| Workflows       | Durable multi-step execution with retries, sleeps, events          | Business processes that must resume after failure: delivery pipeline, onboarding, approvals           | 1 MiB per step result and event payload; 1 GB persisted state per instance on Paid; 10,000 steps default (25,000 max); `step.sleep` up to 365 days; completed state retained 30 days on Paid; not deployable in Workers for Platforms namespaces |
+| Workflows       | Durable multi-step execution with retries, sleeps, events          | Business processes that must resume after failure: delivery pipeline, onboarding, approvals           | 1 MiB per step result and event payload; 1 GB persisted state per instance on Paid; 10,000 steps default (25,000 max); `step.sleep` up to 365 days; completed state retained 30 days on Paid; bindings attachable to Workers for Platforms user Workers (verified 2026-10-27) |
 | Agents SDK      | Durable Object based agent runtime                                 | Stateful agents with RPC, scheduling, built-in queue, retries, `AgentWorkflow`, MCP client and server | Requires `nodejs_compat`; each agent class is its own DO binding plus SQLite migration                                                                                                                                                           |
 | Cron Triggers   | Time-based entry points                                            | Scheduled kick-off of Queues or Workflows                                                             | Keep the cron handler thin; the work belongs to a Workflow or queue consumer                                                                                                                                                                     |
 
@@ -286,21 +286,23 @@ Workflows detail that shapes the lab's lifecycle model (Section 8):
 
 ### 4.4 AI layer: inference, gateway, agents, tools
 
-| Product        | Role                                                 | Capabilities relied on by this plan                                                                                                                                                                                                                                                                                                                                                       |
+| Product        | Role                                                 | Capabilities relied on by this plan (verified 2026-10-27)                                                                                                                                                                                                                                                                                                                                                       |
 | -------------- | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | AI Gateway     | Control plane for every model call                   | Caching, rate limiting, spend limits, Guardrails (content policy), DLP (sensitive data detection), BYOK provider keys, Unified Billing with Zero Data Retention option, logging with payload storage controls, Logpush, custom metadata, custom costs, dynamic routing (fallbacks, conditional routes, traffic splits)                                                                    |
 | Workers AI     | Managed inference on Cloudflare GPUs                 | Text generation, embeddings, image, speech; bound through `ai` binding; route through AI Gateway                                                                                                                                                                                                                                                                                          |
 | Agents SDK     | Agent runtime on Durable Objects                     | Persistent SQLite-backed state synced to clients, `@callable` RPC, scheduling (delay, cron, interval), `AgentWorkflow`, `runFiber` and `stash` for durable execution, built-in FIFO queue, retries with backoff, MCP client and server, email channel, chat agents with resumable streaming, human-in-the-loop approvals, diagnostics-channel observability, webhooks, push notifications |
-| MCP on Workers | Tool exposure to agents                              | `createMcpHandler` servers with Streamable HTTP or SSE transport; OAuth-secured servers; least-privilege tool scopes                                                                                                                                                                                                                                                                      |
+| MCP on Workers | Tool exposure to agents                              | `createMcpHandler` servers over Streamable HTTP (SSE deprecated in the MCP spec); OAuth-secured servers; least-privilege tool scopes                                                                                                                                                                                                                                                                      |
 | AI Search      | Managed RAG                                          | Use before building Vectorize pipelines when the requirement is "answers over our content"                                                                                                                                                                                                                                                                                                |
-| Flagship       | Feature flags with targeting and percentage rollouts | Gate agent capabilities and client-visible features independently of deploys                                                                                                                                                                                                                                                                                                              |
+| Flagship       | Feature flags with targeting and percentage rollouts (public beta; OpenFeature SDKs) | Gate agent capabilities and client-visible features independently of deploys                                                                                                                                                                                                                                                                                                              |
 | Browser Run    | Headless browser automation                          | Research-phase scraping, screenshots, rendered extraction; formerly Browser Rendering                                                                                                                                                                                                                                                                                                     |
 
 Notes that affect design:
 
-- AI Gateway's legacy Unified API is deprecated for single-model calls but
-  still required for dynamic routes. Projects needing failover must plan for
-  this split.
+- AI Gateway's `/compat` OpenAI-compatible endpoint is deprecated for
+  single-model calls. Dynamic routes can still be invoked through it for
+  existing integrations, but new integrations should use the REST API
+  (`/ai/v1/chat/completions`) or the `ai` binding; the Universal Endpoint is
+  deprecated outright.
 - Gateway authentication and upstream provider credentials are separate
   concerns; provider keys belong in Secrets Store or BYOK, never in Worker
   variables.
@@ -312,9 +314,9 @@ Notes that affect design:
 Cloudflare offers two sandbox environments, both reached through a Worker
 (available on Workers Paid):
 
-| Environment              | What it is                                                                                                           | Choose when                                                                                                   | Controls                                                                                        |
+| Environment              | What it is                                                                                                           | Choose when                                                                                                   | Controls (verified 2026-10-27)                                                                  |
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| Dynamic Workers          | A Worker spawned at runtime from supplied JavaScript, Python, or Wasm via a Worker Loader binding (`worker_loaders`) | Code only needs to call methods your Worker exposes; one-shot evaluation (Code Mode) or cached-by-id modules  | `globalOutbound: null` blocks all egress; explicit binding allow-list; isolate-level separation |
+| Dynamic Workers          | A Worker spawned at runtime from supplied JavaScript, Python (needs `python_workers` flag), or Wasm via a Worker Loader binding (`worker_loaders`) | Code only needs to call methods your Worker exposes; one-shot evaluation (Code Mode) or cached-by-id modules  | `globalOutbound: null` blocks all egress; explicit binding allow-list; isolate-level separation; 4 concurrent per request, 10 per Durable Object |
 | Containers (Sandbox SDK) | A microVM with its own kernel and network, started from an image by a Durable Object                                 | Code needs Linux, a shell, a filesystem, long-running processes, or coding agents (Claude Code, Codex, Devin) | `enableInternet: false`; credentials stay in the Worker; R2 mounts for workspaces; snapshots    |
 
 Rules:
@@ -322,21 +324,25 @@ Rules:
 - Generated code never runs inline in a request handler.
 - Default to Dynamic Workers; escalate to Containers only when Linux is a
   requirement.
-- The `@cloudflare/sandbox` package line matters: 0.x and the current SDK
-  differ; check the installed version before reading docs.
+- The `@cloudflare/sandbox` package line matters: stable 0.x and the 1.0
+  preview on the `@next` tag differ; new projects should start on `@next`,
+  and a preview Worker package must pair with the matching preview container
+  image.
 
 ### 4.6 Multi-tenancy and client dispatch
 
-| Product                    | Role                                                                            | Facts that drive the decision                                                                                                                                                                                                                                                                                              |
+| Product                    | Role                                                                            | Facts that drive the decision (verified 2026-10-27)                                                                                                                                                                                                                                                                        |
 | -------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Workers for Platforms      | Dispatch namespaces holding unlimited customer Workers behind a dispatch Worker | Untrusted mode by default (no `request.cf`, per-Worker cache); custom CPU and subrequest limits per customer; optional Outbound Worker for egress control (does not intercept DO or mTLS fetches; disables TCP `connect()`); up to 8 tags per Worker; no gradual deployments; Workflows cannot be deployed into namespaces |
+| Workers for Platforms      | Dispatch namespaces holding unlimited customer Workers behind a dispatch Worker | Untrusted mode by default (no `request.cf`, per-Worker cache); custom CPU and subrequest limits per customer; optional Outbound Worker for egress control (does not intercept DO or mTLS fetches; disables TCP `connect()`); up to 8 tags per Worker; no gradual deployments; no cron triggers on user Workers (silently dropped; use Durable Object alarms); Workflow, Queue, and Container bindings attachable to user Workers |
 | Cloudflare for SaaS        | Custom hostnames and TLS for client domains                                     | Pairs with WfP or with a single multi-tenant Worker; check apex-domain plan requirements                                                                                                                                                                                                                                   |
 | Durable Objects per tenant | Isolation inside one Worker                                                     | Per-tenant SQLite state with strict serializability; simplest model for standard engagements                                                                                                                                                                                                                               |
 | Previews                   | Isolation per branch, not per tenant                                            | Not a tenancy mechanism; listed here to avoid confusion                                                                                                                                                                                                                                                                    |
 
-The Workflows constraint is decisive: if a client application's business
-processes are modeled as Workflows, they must live in the lab's own Workers,
-not inside a dispatch namespace. See Section 9, D1 for the resulting hybrid.
+Workflow bindings are now attachable to user Workers (verified 2026-10-27),
+which removes the constraint that made D1 option C mandatory for durable
+processes. The remaining namespace gaps are cron triggers and gradual
+deployments. D1's stated rationale predates this change; re-review is
+tracked in DEV-109 before the decision is amended.
 
 ### 4.7 Delivery tooling: configuration, CI/CD, previews, releases
 
@@ -570,11 +576,12 @@ change it, and the facts that drove it. Projects instantiate these as ADRs
 | ------ | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | A      | Workers for Platforms: each client app is a Worker in a dispatch namespace        | Clients need independent deploys, per-client CPU and subrequest limits, custom domains, or run their own code |
 | B      | Single multi-tenant Worker with a Durable Object per tenant                       | Standard engagements, internal tools, early-stage client work                                                 |
-| C      | Hybrid: WfP for client-facing Workers, lab-owned Workers for Workflows and agents | Any time a WfP client needs durable processes, because Workflows cannot run inside dispatch namespaces        |
+| C      | Hybrid: WfP for client-facing Workers, lab-owned Workers for Workflows and agents | Any time a WfP client needs durable processes; originally driven by the Workflows-in-namespace constraint, which no longer holds (bindings attachable since 2026; decision re-review pending, DEV-109) |
 
 Default: B for standard engagements; C once a second flagship client proves
-the need. Pure A is not an option for agentic clients because of the
-Workflows constraint. Decision criteria: data separation requirements,
+the need. Pure A was excluded for agentic clients because of the Workflows
+constraint, which no longer holds; the decision stands pending re-review.
+Decision criteria: data separation requirements,
 deploy independence, metering and billing, custom domains, whether clients
 run their own code, whether the client needs durable processes.
 
@@ -909,10 +916,11 @@ Consolidated from Section 4; every number is a hint to re-verify.
 | Workflows             | Completed state retention                    | 30 days                                                     |
 | Workflows             | Concurrent instances per account             | 50,000 (waiting instances excluded)                         |
 | Workflows             | Instance creation rate                       | 300 per second per account; 100 per second per workflow     |
-| Workflows             | Where it cannot run                          | Workers for Platforms namespaces                            |
+| Workflows             | Workers for Platforms namespaces             | Workflow bindings attachable to user Workers                |
 | Previews              | Previews per Worker; deployments per Preview | 500; 100                                                    |
 | Workers for Platforms | Workers per namespace; tags per Worker       | Unlimited; 8                                                |
-| Workers for Platforms | Gradual deployments                          | Not supported                                               |
+| Workers for Platforms | Gradual deployments; cron triggers           | Not supported; not on user Workers (use DO alarms)          |
+| Dynamic Workers       | Concurrent distinct per I/O context          | 4 per Worker request; 10 per Durable Object; Paid only      |
 | Workers Logs          | Retention                                    | 7 days                                                      |
 | Cloudflare API        | Rate limit                                   | 1,200 requests per 5 min per account; 200 per second per IP |
 | Request body          | Maximum (zone plan dependent)                | 100 MB Free and Pro; 200 MB Business; up to 5 GB Enterprise |
@@ -1106,12 +1114,12 @@ and chosen dispatch model. Its implementation is out of scope here.
 | Platform facts drift (prices, limits, betas)           | High       | Medium | Section 2.2 decay policy; quarterly verification; Section 22 register                                                            |
 | Vendor concentration on Cloudflare                     | Medium     | High   | Bindings keep application code portable in shape; R2 is S3-compatible; D1 and DO use SQLite; documented export paths per product |
 | Beta dependency in a client commitment                 | Medium     | High   | Tier defaults use GA products; betas need an ADR with a fallback                                                                 |
-| Workflows not available in WfP namespaces              | Certain    | Medium | D1 option C hybrid; design dispatch so processes live in lab Workers                                                             |
+| WfP namespace gaps: no cron triggers, no gradual rollouts | Certain    | Low    | Workflow bindings attachable to user Workers (verified 2026-10-27); schedule from dispatch Worker or DO alarms                  |
 | D1 10 GB ceiling reached                               | Medium     | Medium | Per-tenant or per-domain databases from day one; Hyperdrive escape hatch                                                         |
 | Preview leaks production data                          | Medium     | High   | Rule: no production bindings in Previews; Access on all Previews; review diff                                                    |
 | Agent cost runaway                                     | Medium     | Medium | AI Gateway spend limits; `limits.cpu_ms`; retry caps; monthly cost review                                                        |
 | Observability pricing change (2026-12-01)              | Certain    | Low    | Re-estimate log volume before December; sampling policy ready                                                                    |
-| Deprecation of AI Gateway Unified API for single calls | Certain    | Low    | Use provider-native or binding endpoints for single calls; Unified only for dynamic routes                                       |
+| Deprecation of AI Gateway `/compat` endpoints          | Certain    | Low    | Use the REST API (`/ai/v1/*`) or `ai` binding for single calls and dynamic routes                                                 |
 | Over-engineering small projects                        | Medium     | Medium | Tier system; ADR required to exceed tier                                                                                         |
 
 ## 19. Deliberately excluded
@@ -1222,6 +1230,16 @@ D1 limits, Durable Objects limits, Queues limits, Workflows limits, Previews;
 URLs unchanged from the register above). Corrections applied: D1 databases per
 account is raisable by request; cheat sheet rows added for D1 2 MB row size,
 Queues per account, and Workflows concurrent instances.
+
+Re-verified 2026-10-27 (DEV-109 daily pass; AI Gateway features, unified
+API, and REST API docs; Agents docs and the cloudflare/agents repo; AI
+Search docs; Flagship docs and beta changelog; Browser Run rename
+changelog; Dynamic Workers docs; Sandbox SDK 1.0 preview docs; Workers for
+Platforms limits, bindings, and Outbound Workers docs; workers-sdk issue
+13840). Corrections applied: Workflow bindings attachable in WfP
+namespaces; AI Gateway dynamic routes available via the REST API; MCP
+`createMcpHandler` is Streamable HTTP only (SSE deprecated); cron triggers
+unsupported on WfP user Workers; Flagship marked public beta.
 
 ---
 
@@ -1410,6 +1428,7 @@ the scaffold.
 | 3        | 2026-10-25 | Reuse and control edition: D11 design system and private component registry, D12 product identity and white-label readiness, D13 auth and authz from day one, D14 configuration and secret management, D15 model provider policy; Section 23 administrative management interface; principles 11 to 13; CONFIG-AND-SECRETS companion document; new audit events; source register additions |
 | 3a       | 2026-10-26 | Amendment: platform doctrine Section 1.2 (defaults are revisable, adoption path for second platforms, stack-agnostic lifecycle); skills sourcing rule in 15.5; ADR numbering Section 16.1; documentation platform readiness Section 16.2; Q7 resolved by LAB-ADR-0001                                                                                                                     |
 | 3b       | 2026-10-26 | DEV-109 daily verification: Sections 4.1-4.3, 4.7, 12, 13 re-verified against official docs; D1 databases-per-account marked raisable; cheat sheet gained D1 row size, Queues per account, Workflows concurrent instances                                                                                                                 |
+| 3c       | 2026-10-27 | DEV-109 daily verification: Sections 4.4-4.6 re-verified against official docs; corrections: Workflow bindings attachable in WfP namespaces, AI Gateway dynamic routes via REST API, MCP SSE deprecated, WfP user Workers lack cron triggers; Flagship marked public beta; cheat sheet and risk table updated; D1 re-review flagged to DEV-109 |
 
 _Living document: revise after each phase exit and each quarterly fact
 verification. Decisions become ADRs in `md/adr/` of implementing
