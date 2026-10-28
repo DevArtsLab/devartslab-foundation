@@ -3,7 +3,7 @@
 > Single source of truth for what lives in this repository.
 > Regenerate when files or folders are added, removed, or substantially rewritten.
 >
-> **Last updated:** 2026-10-25
+> **Last updated:** 2026-10-27
 
 ## Top-level
 
@@ -14,6 +14,7 @@
 | `.gitignore`    | Hygiene rules (env files, keys, OS junk, editor state)          |
 | `md/`           | Framework documentation set (documentation only, no code)       |
 | `md/adr/`       | Lab-wide decision records (`LAB-ADR-*`) that bind every project |
+| `md/security/`  | Lab-wide security baseline that every project extends           |
 
 ## md/
 
@@ -28,6 +29,12 @@
 | File                                         | What it is                                                                                                                                         |
 | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `LAB-ADR-0001-centralized-identity-layer.md` | Lab-wide: centralized identity layer, no shared auth database. Resolves MEGA-PLAN Q7 and underpins D13. Promoted from career-tracker on 2026-10-26 |
+
+## md/security/
+
+| File                  | What it is                                                                                                                                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `LAB-THREAT-MODEL.md` | Lab-wide baseline threat model, revision 1: repository classes, trust boundaries, assets, attacker profiles, charter controls, owner decisions, controls-vs-reality gaps found by security scans |
 
 ## Not yet present (tracked as open items)
 

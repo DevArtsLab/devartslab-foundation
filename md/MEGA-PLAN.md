@@ -920,7 +920,9 @@ Consolidated from Section 4; every number is a hint to re-verify.
 ## 14. Threat model for agentic applications
 
 Threats specific to agent-driven systems, with the foundation control that
-addresses each. Projects extend this in `md/security/threat-model.md`.
+addresses each. The lab-wide baseline (repository classes, assets,
+attackers, owner decisions) is `md/security/LAB-THREAT-MODEL.md`; projects
+extend both in `md/security/threat-model.md`.
 
 | Threat                                   | Vector                                                  | Foundation control                                                                                     |
 | ---------------------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
