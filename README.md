@@ -20,7 +20,11 @@ roadmap.
 3. [md/CONFIG-AND-SECRETS.md](md/CONFIG-AND-SECRETS.md): where
    configuration, PII, and secrets live across local, staging, production,
    and distributed products, with the per-platform store inventory.
-4. [REPO_INDEX.md](REPO_INDEX.md): what lives where in this repository.
+4. [md/security/LAB-THREAT-MODEL.md](md/security/LAB-THREAT-MODEL.md):
+   lab-wide baseline threat model (repository classes, trust boundaries,
+   assets, attackers, owner decisions, controls vs. reality) that every
+   repository extends in its own `md/security/threat-model.md`.
+5. [REPO_INDEX.md](REPO_INDEX.md): what lives where in this repository.
 
 ## Status
 
