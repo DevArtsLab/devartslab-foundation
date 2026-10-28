@@ -24,7 +24,11 @@ roadmap.
    lab-wide baseline threat model (repository classes, trust boundaries,
    assets, attackers, owner decisions, controls vs. reality) that every
    repository extends in its own `md/security/threat-model.md`.
-5. [REPO_INDEX.md](REPO_INDEX.md): what lives where in this repository.
+5. [md/PII-IN-REPOSITORIES.md](md/PII-IN-REPOSITORIES.md): how committed
+   content references personal data without containing it: placeholders,
+   the registry and overlay, the sentinel agent, detection tooling, and
+   the git-history rules.
+6. [REPO_INDEX.md](REPO_INDEX.md): what lives where in this repository.
 
 ## Status
 
