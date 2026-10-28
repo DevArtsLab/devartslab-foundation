@@ -1,6 +1,6 @@
 # LAB-THREAT-MODEL - DevArts Lab baseline threat model (all repositories)
 
-Status: revision 2, 2026-10-28. Baseline confirmed by the lab owner 2026-10-27; revision 2 adds attacker profile A6, the agents-and-tooling boundary, the per-boundary threat enumeration, the controls-vs-reality lifecycle, and the MEGA-PLAN revision 3d controls. Applies to every DevArtsLab repository. This file is the source of truth; the Devin security scan profile "DevArtsLab org baseline threat model" is a copy and is re-synced when this file changes, and its carried revision number must match this file's (a mismatch is itself a finding). Facts marked **[charter]** come from this repository: `md/MEGA-PLAN.md` (Sections 4.9, 10, 14, D9, D13, D15, Appendix B), `md/CONFIG-AND-SECRETS.md` (Sections 3, 7.3, 8), `md/PII-IN-REPOSITORIES.md` and `md/adr/LAB-ADR-0001-centralized-identity-layer.md`. The repository inventory comes from `DevArtsLab/devartslab` `LAB_INDEX.md`. Everything else was inferred from repository descriptions.
+Status: revision 3, 2026-10-28. Baseline confirmed by the lab owner 2026-10-27; revision 3 records the owner's acceptance of the A6 owner-credential hardening control (with a monthly session review); revision 2 added attacker profile A6, the agents-and-tooling boundary, the per-boundary threat enumeration, the controls-vs-reality lifecycle, and the MEGA-PLAN revision 3d controls. Applies to every DevArtsLab repository. This file is the source of truth; the Devin security scan profile "DevArtsLab org baseline threat model" is a copy and is re-synced when this file changes, and its carried revision number must match this file's (a mismatch is itself a finding). Facts marked **[charter]** come from this repository: `md/MEGA-PLAN.md` (Sections 4.9, 10, 14, D9, D13, D15, Appendix B), `md/CONFIG-AND-SECRETS.md` (Sections 3, 7.3, 8), `md/PII-IN-REPOSITORIES.md` and `md/adr/LAB-ADR-0001-centralized-identity-layer.md`. The repository inventory comes from `DevArtsLab/devartslab` `LAB_INDEX.md`. Everything else was inferred from repository descriptions.
 
 Per-repository convention: each repository extends this baseline in its own `md/security/threat-model.md` (MEGA-PLAN Section 14, PRE-DEVELOPMENT Section 8.6), and its system-specific text wins where the two differ. Example: `DevArtsLab/tool-universal-ai-config` `md/security/threat-model.md`.
 
@@ -63,7 +63,7 @@ Coverage check: every boundary and every attacker profile maps to at least one t
 | Untrusted content to agents | Memory and context poisoning: untrusted or inferred facts silently become authoritative | A2       | Trust levels and provenance on every fact; quarantine until human-promoted; invalidation preserves history instead of overwriting                                                            |
 | Untrusted content to agents | Automated access violates a source's terms (complaint, block, legal exposure)           | A1, A2   | One source card per source: dated terms status (allowed, restricted, forbidden, unknown); forbidden means import-only; per-source rate limits and kill switches                              |
 | Developer machine           | Local user or shared-machine read of the `config/` store and agent configs              | A5       | SOPS+age ciphertext at rest; age key in OS keychain; least-privilege agent scopes                                                                                                            |
-| Developer machine           | Owner credential compromised off-machine (phishing, token theft, replay)                | A6       | Gap: no dedicated control today; least-privilege scoping limits blast radius; see open proposals below                                                                                       |
+| Developer machine           | Owner credential compromised off-machine (phishing, token theft, replay)                | A6       | Owner-credential hardening (hardware keys, short-lived tokens, monthly session and authorized-app review, recovery path; accepted revision 3, not yet implemented); least-privilege scoping  |
 | Supply chain                | Compromised or brand-new dependency, Action, MCP server, or skill                       | A4       | 7-day minimum release age; lockfiles; pre-push review; license gate (permissive in-process, copyleft as separate services, `THIRD_PARTY.md`); pinned MCP and skill digests with review notes |
 | Agents and tooling          | Rogue or runaway agent: unbounded actions or spend                                      | A2, A4   | Bounded steps, seconds, and spend per agent; kill switches; per-agent tokens at least privilege; approval gates for side effects                                                             |
 | Agents and tooling          | Audit tampering: events altered, dropped, or forged                                     | A3, A6   | CloudEvents envelope; per-tenant hash chain verified on schedule; digests not payloads; "no event, no result" write rule (Appendix B)                                                        |
@@ -82,6 +82,7 @@ Coverage check: every boundary and every attacker profile maps to at least one t
 - Audit events are tamper-evident: CloudEvents envelope, per-tenant hash chain verified on schedule, payloads referenced by digest, synchronous "no event, no result" writes (Appendix B, revision 3d).
 - PII in committed documentation is placeholdered, not embedded: `{{PII:<TOKEN>}}` tokens, a committed registry plus gitignored overlay, sentinel scans on edit and pre-publish, history scrub treated as assume-breached (`md/PII-IN-REPOSITORIES.md`, revision 3d).
 - Facts from untrusted content and agent inference are quarantined with trust level and provenance until human-promoted (Section 14, revision 3d).
+- Owner credentials are hardened against A6: hardware security keys on GitHub, Cloudflare, and Google; short-lived tokens for CI and agents; a monthly review of active sessions and authorized apps; a documented recovery path (owner decision 2026-10-28, revision 3).
 
 Note: these are the charter's **intended** controls. A finding showing that a repository does not implement one of them is a real finding, not a duplicate of the control.
 
@@ -98,6 +99,10 @@ Note: these are the charter's **intended** controls. A finding showing that a re
 - Every attacker profile A1-A5 matters, so scanner severities generally stand.
 - (Revision 2 note: A6 was added after this decision; its severity mapping is an open proposal pending owner confirmation.)
 
+## Lab owner decisions (2026-10-28)
+
+- Owner-credential hardening control for A6 accepted, modified: hardware security key on GitHub, Cloudflare, and Google; short-lived tokens for CI and agents; a **monthly** (not quarterly) review of sessions and authorized apps; documented recovery path.
+
 ## Controls vs. reality (refinement input)
 
 Gaps where security scans show a repository does not yet implement a [charter] control. Each row becomes a refinement item or an ADR in the implementing repository.
@@ -109,12 +114,13 @@ Row lifecycle (added revision 2): every row carries a status (`open`, `fixed`, `
 | tool-universal-ai-config | Supply chain: versions published at least 7 days ago, lockfiles (Section 14)   | `install.sh` downloads the unpinned `main` branch tarball with no checksum                                                                                                           | threat model review 2026-10-27 | open   |
 | tool-universal-ai-config | Untrusted content does not steer agents; MCP least privilege (Sections 10, 14) | `sync --project` writes MCP servers, rules and skills from a cloned repo's `.ai/` into provider configs, and writes through symlinks outside the project root (scan finding, medium) | security scan 2026-10-27       | open   |
 | tool-universal-ai-config | Secrets never in repositories (CONFIG-AND-SECRETS principle 1)                 | `sync --project` can copy global MCP server secrets into project-level provider files (scan finding, low)                                                                            | security scan 2026-10-27       | open   |
-| lab-wide                 | Owner credential compromise has no dedicated control (A6)                      | Owner identity grants full reach across every boundary; mitigations today are incidental (token scoping, audit trail)                                                                | threat enumeration 2026-10-28  | open   |
+| lab-wide                 | Owner credential compromise has no dedicated control (A6)                      | Owner identity grants full reach across every boundary; hardening control accepted 2026-10-28 (revision 3) but not yet implemented; mitigations today are incidental (token scoping, audit trail) | threat enumeration 2026-10-28  | open   |
 
 ## Open proposals (pending owner decision)
 
+Proposal 1 of revision 2 (owner-credential hardening for A6) was accepted with a monthly session review and moved to Controls and Lab owner decisions in revision 3.
+
 Items that need the same explicit confirmation the 2026-10-27 decisions received:
 
-1. **Owner-credential hardening control for A6.** Candidate: hardware security key on GitHub, Cloudflare, and Google; short-lived tokens for CI and agents; a quarterly review of sessions and authorized apps; documented recovery path. Accept, modify, or reject.
-2. **Findings ranked by blast radius.** Equal asset weighting governs whether a finding counts (owner decision, unchanged). A blast-radius estimate per finding would order the remediation queue without reopening the weighting question. Accept or reject.
-3. **Owner device attestation.** The `config/` store and `~/.agents/` give one machine lab-wide reach; full-disk encryption and a screen-lock policy verified periodically. Accept or reject.
+1. **Findings ranked by blast radius.** Equal asset weighting governs whether a finding counts (owner decision, unchanged). A blast-radius estimate per finding would order the remediation queue without reopening the weighting question. Accept or reject.
+2. **Owner device attestation.** The `config/` store and `~/.agents/` give one machine lab-wide reach; full-disk encryption and a screen-lock policy verified periodically. Accept or reject.
