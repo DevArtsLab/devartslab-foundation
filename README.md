@@ -28,7 +28,7 @@ roadmap.
    content references personal data without containing it: placeholders,
    the registry and overlay, the sentinel agent, detection tooling, and
    the git-history rules.
-6. [INDEX.md](INDEX.md): what lives where in this repository.
+6. [REPO_INDEX.md](REPO_INDEX.md): what lives where in this repository.
 
 ## Status
 

@@ -1013,7 +1013,7 @@ Repository: <https://github.com/docker/docker-agent> (formerly
 
 - `AGENTS.md` at the repository root states how agents should work in the
   repo: commands, verification steps, forbidden actions, Linear tracking.
-- `INDEX.md` lists what lives where and is regenerated on change.
+- `REPO_INDEX.md` lists what lives where and is regenerated on change.
 - `md/` holds the plan, ADRs, agent cards, governance register, runbooks.
 - Agents working a documentation corpus in the research stage follow the
   serial-code convention: one spec file per agent (`RESEARCH-###.md` or an
@@ -1039,7 +1039,7 @@ reconciles the earlier `md/` and `docs/` variants into a single tree;
 <repo>/
   AGENTS.md                     agent-facing conventions for this repo
   README.md                     human entry point; links to md/
-  INDEX.md                 what lives where (regenerated on change)
+  REPO_INDEX.md                         what lives where (regenerated on change)
   LICENSE                       per Q4; public repos must carry one
   SECURITY.md                   disclosure contact and supported versions
   .gitignore                    env files, keys, build output, OS junk
