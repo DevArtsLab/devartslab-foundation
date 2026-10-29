@@ -28,7 +28,11 @@ roadmap.
    content references personal data without containing it: placeholders,
    the registry and overlay, the sentinel agent, detection tooling, and
    the git-history rules.
-6. [REPO_INDEX.md](REPO_INDEX.md): what lives where in this repository.
+6. [md/MARKET-SIGNALS.md](md/MARKET-SIGNALS.md): what the market measurably
+   rewards (hiring metrics, exec AI-ROI pain, growth-verified keywords),
+   the ledger collection contract, and the alignment rules every product,
+   roadmap, and pitch follows. Refreshed by Linear DEV-125.
+7. [REPO_INDEX.md](REPO_INDEX.md): what lives where in this repository.
 
 ## Status
 
