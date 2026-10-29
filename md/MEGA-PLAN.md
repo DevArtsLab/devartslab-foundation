@@ -205,7 +205,7 @@ consequence for projects, and how compliance is checked.
 | 7   | Secrets never touch files in production               | File-borne secrets leak through VCS, CI logs, and agent context                            | `wrangler secret` or Secrets Store bindings in prod; `.dev.vars` locally and gitignored                                                      | Pre-push secret scan (lab `devartslab-code-review` skill)                    |
 | 8   | Prefer bindings over REST calls                       | REST adds auth, latency, and rate-limit exposure (1200 requests per 5 minutes per account) | Reach D1, KV, R2, Queues, AI, Secrets through bindings; REST only for control-plane automation                                               | Review flag per `workers-best-practices` anti-patterns                       |
 | 9   | Protect against runaway spend                         | Agents and public endpoints can create denial-of-wallet                                    | `limits.cpu_ms` set deliberately; AI Gateway spend limits; Queues backpressure; WAF rate limits                                              | Cost guardrail checklist at launch gate                                      |
-| 10  | Documents are the interface between humans and agents | Agents act on what is written; undocumented intent is lost                                 | `md/` document set in every repo, this plan as root; ADRs for every deviation                                                                | REPO_INDEX and ADR presence in repository audit                              |
+| 10  | Documents are the interface between humans and agents | Agents act on what is written; undocumented intent is lost                                 | `md/` document set in every repo, this plan as root; ADRs for every deviation                                                                | INDEX and ADR presence in repository audit                              |
 | 11  | Build once, reuse everywhere                          | Work rebuilt per project is work paid for twice and maintained in parallel                 | Libraries, packages, UI components, and agent rules ship through the lab registry (D11); per-app copies need an ADR                          | Duplication review: a second implementation of the same concern fails review |
 | 12  | Identity is a variable, never a literal               | A business name, domain, or brand hardcoded into the estate makes a rename a rewrite       | One identity manifest per product; brand strings resolve from it (D12)                                                                       | CI check for forbidden literals outside the manifest                         |
 | 13  | No silent fallback                                    | A degradation nobody can see is a defect that persists                                     | Every automatic switch (provider, cache, limit, feature) surfaces in the administrative interface and emits an audit event (Section 23, D15) | Fallback test: trigger each one and observe it in the interface              |
@@ -1013,7 +1013,7 @@ Repository: <https://github.com/docker/docker-agent> (formerly
 
 - `AGENTS.md` at the repository root states how agents should work in the
   repo: commands, verification steps, forbidden actions, Linear tracking.
-- `REPO_INDEX.md` lists what lives where and is regenerated on change.
+- `INDEX.md` lists what lives where and is regenerated on change.
 - `md/` holds the plan, ADRs, agent cards, governance register, runbooks.
 - Agents working a documentation corpus in the research stage follow the
   serial-code convention: one spec file per agent (`RESEARCH-###.md` or an
@@ -1039,7 +1039,7 @@ reconciles the earlier `md/` and `docs/` variants into a single tree;
 <repo>/
   AGENTS.md                     agent-facing conventions for this repo
   README.md                     human entry point; links to md/
-  REPO_INDEX.md                 what lives where (regenerated on change)
+  INDEX.md                 what lives where (regenerated on change)
   LICENSE                       per Q4; public repos must carry one
   SECURITY.md                   disclosure contact and supported versions
   .gitignore                    env files, keys, build output, OS junk

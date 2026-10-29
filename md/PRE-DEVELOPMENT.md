@@ -180,7 +180,7 @@ md/
   runbooks/               created during Development; launch, rollback, restore
 ```
 
-Repository root files (`AGENTS.md`, `README.md`, `REPO_INDEX.md`,
+Repository root files (`AGENTS.md`, `README.md`, `INDEX.md`,
 `LICENSE`, `SECURITY.md`, `.gitignore`, `.dev.vars.example`,
 `wrangler.jsonc`) are listed in MEGA-PLAN Section 16 and created by the
 scaffold.

@@ -1,4 +1,4 @@
-# REPO_INDEX.md - devartslab-foundation
+# INDEX.md - devartslab-foundation
 
 > Single source of truth for what lives in this repository.
 > Regenerate when files or folders are added, removed, or substantially rewritten.
@@ -10,7 +10,7 @@
 | Path            | What it is                                                      |
 | --------------- | --------------------------------------------------------------- |
 | `README.md`     | Entry point: what the foundation is, how to read it, status     |
-| `REPO_INDEX.md` | This index                                                      |
+| `INDEX.md` | This index                                                      |
 | `.gitignore`    | Hygiene rules (env files, keys, OS junk, editor state)          |
 | `md/`           | Framework documentation set (documentation only, no code)       |
 | `md/adr/`       | Lab-wide decision records (`LAB-ADR-*`) that bind every project |
