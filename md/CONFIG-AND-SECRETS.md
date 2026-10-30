@@ -97,34 +97,43 @@ and nothing breaks. Delete any project directory, and no secret is lost.
 |   |                                 owners, rotation due, consumers
 |   |                                 (names and metadata only, never values)
 |   |
-|   |-- identity/                      D12 manifests (tracked, non-secret)
-|   |   |-- devartslab.json            display name, domains, handles, tokens
-|   |   +-- <future-brand>.json        a rename is a new file, not a rewrite
+|   |-- identity/<brand>.json          D12 manifests (tracked, non-secret)
 |   |
 |   |-- profiles/                      person data (ENCRYPTED, tracked as ciphertext)
 |   |   |-- operator.sops.json         replaces today's plaintext pii.json
 |   |   +-- profile.schema.json        schema (tracked, plaintext)
 |   |
-|   |-- secrets/                       credentials (ENCRYPTED at rest)
-|   |   |-- _shared/                   used by more than one project
-|   |   |-- platform/                  grouped by provider
-|   |   |   |-- cloudflare/
-|   |   |   |-- google/
-|   |   |   |-- github/
-|   |   |   +-- <provider>/
-|   |   +-- project/                   keyed by project SLUG, not by path
-|   |       |-- career-tracker/
-|   |       +-- <slug>/
+|   |-- _shared/                       credentials shared across entities
+|   |   +-- <platform>/<env>/secrets/
 |   |
-|   +-- env/                           rendered dotenv files, gitignored
-|       +-- <slug>/.env.local          materialized on demand, disposable
+|   |-- projects/<slug>/               entity axis: owning project
+|   |   +-- <platform>/<env>/
+|   |       |-- secrets/               (ENCRYPTED)
+|   |       |-- config/                (non-secret settings)
+|   |       +-- data/                  (manifests, seed, schemas)
+|   |
+|   |-- orgs/<slug>/                   partner orgs (multi-tenant entities)
+|   |-- consultants/<slug>/
+|   |
+|   +-- env/<entity-path>/             rendered dotenv, gitignored;
+|                                      path mirrors the entity path
 |
 |-- career-tracker/                    a project; contains NO secret values
-|   |-- .dev.vars.example              required key NAMES with placeholders
+|   |-- .env.example                   required key NAMES with placeholders
 |   +-- project.json                   declares slug + the secret ids it needs
 |
 +-- <other projects>/                  same contract
 ```
+
+Layout rules:
+
+- Partition by owning entity first; providers nest underneath. A new
+  project, org, or consultant is one new top dir - no reshuffling.
+- Uniform leaf: every `<entity>/<platform>/<env>/` holds the same
+  `{secrets, config, data}` triple. `_default` and `_template` dirs hold
+  per-entity-type defaults (proven in the RTS repository).
+- Encrypt `secrets/` subtrees only; `config/` and `data/` stay tracked
+  plaintext. `env/` renders gitignored dotenv at the mirrored entity path.
 
 Data flow for a local run:
 
@@ -138,7 +147,7 @@ Data flow for a local run:
   read project.json -> list of required secret ids
             |
             v
-  decrypt only those ids from config/secrets/  (age key from OS keychain)
+  decrypt only those ids under config/projects/<slug>/  (age key from OS keychain)
             |
             v
   inject as environment variables into the child process only
@@ -150,7 +159,7 @@ Data flow for a local run:
 Why this satisfies the requirements:
 
 - **Delete a repository safely.** Credentials live under
-  `config/secrets/project/<slug>/`, outside the checkout. Removing the
+  `config/projects/<slug>/`, outside the checkout. Removing the
   checkout removes no secret. Re-cloning restores a working project with no
   credential re-entry.
 - **Move the workspace.** Every path is relative to the discovered root, so
