@@ -1297,6 +1297,18 @@ and `ai_gateway`; Workers Logs gains the new Observability rates effective
 2026-12-01; Email Sending priced and still public beta; Vinext 1.0 released
 2026-09-28 and is the Cloudflare-recommended Next.js path.
 
+Re-verified 2026-10-30 (DEV-109 daily pass; Section 1.2 second-platform
+candidates: cognizant-ai-lab/neuro-san repository and releases, n8n
+changelog, license FAQ, editions, and self-hosting docs, docker/compose
+releases and compose-spec repository). No corrections; all three named
+roles remain accurate. Decision-grade notes: Neuro-SAN is actively
+maintained but still pre-1.0 (0.7.x, Apache-2.0); n8n stable is on the 2.x
+line and the Sustainable Use License permits lab-built client workflows
+only while clients cannot edit them (client-edited automation, embedding,
+or white-label use requires a commercial license); Docker Compose is on
+major version 5 (v5.6.1, 2026-10-21; the v2 line ended at 2.40.3 on
+2025-10-30).
+
 ---
 
 ## 23. Administrative management interface
@@ -1507,6 +1519,7 @@ normalized_json(event))` over deterministically serialized JSON (sorted
 | 3c       | 2026-10-27 | DEV-109 daily verification: Sections 4.4-4.6 re-verified against official docs; corrections: Workflow bindings attachable in WfP namespaces, AI Gateway dynamic routes via REST API, MCP SSE deprecated, WfP user Workers lack cron triggers; Flagship marked public beta; cheat sheet and risk table updated; D1 re-review flagged to DEV-109                                                                                                                                                                  |
 | 3d       | 2026-10-28 | Waykeeper research transfer (DEV-118): PII-IN-REPOSITORIES companion document; PII-in-documents row in Section 11; source-terms and license-gate guardrails in Section 10; terms-violation and memory-poisoning threats plus the OWASP agentic mapping note in Section 14; audit event integrity rules and two new events in Appendix B; open-question default mechanism in Section 20; research-stage agent registry convention in 15.5; D12 reference implementation; release-flag expiry enforcement in 23.3 |
 | 3e       | 2026-10-29 | DEV-109 daily verification: Sections 4.8-4.12 re-verified against official docs; corrections: Workflows completed-state retention now defaults to 7 days on Paid for Workflows created on or after 2026-09-10 (30-day max), R2 has no S3-style object versioning, Secrets Store scopes expanded, Workers Logs carries the 2026-12-01 Observability rates, Email Sending priced and public beta, Vinext 1.0 confirmed as the recommended Next.js path |
+| 3f       | 2026-10-30 | DEV-109 daily verification: Section 1.2 second-platform candidates re-verified (Neuro-SAN, n8n, Docker Compose); no corrections; decision-grade notes added to Section 22 (Neuro-SAN pre-1.0, n8n SUL client-editing boundary, Compose on major v5) |
 
 _Living document: revise after each phase exit and each quarterly fact
 verification. Decisions become ADRs in `md/adr/` of implementing
