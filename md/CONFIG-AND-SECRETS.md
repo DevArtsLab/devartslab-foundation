@@ -391,7 +391,7 @@ Read 2026-10-25 unless noted.
 | GitHub Actions secrets                      | <https://docs.github.com/en/actions/concepts/security/secrets>                                            |
 | Devin secrets and site cookies              | <https://docs.devin.ai/product-guides/secrets>                                                            |
 | Devin environment management best practices | <https://docs.devin.ai/enterprise/environment-management/best-practices>                                  |
-| SOPS                                        | <https://github.com/age-sops/sops>                                                                        |
+| SOPS                                        | <https://github.com/getsops/sops>                                                                         |
 | 1Password service accounts                  | <https://www.1password.dev/service-accounts>                                                              |
 | 1Password `op run`                          | <https://www.1password.dev/cli/reference/commands/run>                                                    |
 | OWASP DevSecOps: secrets patterns           | <https://owasp.github.io/DevSecOpsGuideline/2-Process/2-6-Deploy/2-6-2-Secrets-in-Kubernetes-and-GitOps/> |

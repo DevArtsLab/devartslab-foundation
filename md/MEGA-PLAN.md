@@ -694,13 +694,16 @@ own private shadcn registry so one component set serves every application:
 
 - A namespaced registry (for example `@devartslab`) is declared in each
   project's `components.json`; components install with
-  `npx shadcn add @devartslab/<item>`.
-- Registries are authenticated with a bearer token or API key supplied
-  through an environment variable, never committed (see D14). Namespaces
-  allow a public tier, an internal tier, and a client-licensed tier side by
-  side.
-- A registry item can carry components, hooks, pages, config, and agent
-  rules, so the registry distributes conventions and not only UI.
+  `npx shadcn@latest add @devartslab/<item>`.
+- Registries are authenticated with a bearer token, API key, basic-auth, or
+  query-param credential supplied through an environment variable (`${VAR}`
+  expansion in `components.json`), never committed (see D14). Public GitHub
+  registries also work as `owner/repo` sources with no `components.json`
+  entry; private GitHub repos authenticate through `gh` or `GH_TOKEN`.
+  Namespaces allow a public tier, an internal tier, and a client-licensed
+  tier side by side.
+- A registry item can carry components, hooks, pages, config, AI prompts,
+  and agent rules, so the registry distributes conventions and not only UI.
 - Community registries from the shadcn Registry Directory may be used for
   advanced surfaces, subject to the supply-chain rule in Section 14: review
   the code on install and prefer versions published at least 7 days ago.
@@ -1263,7 +1266,7 @@ Added revision 3 (read 2026-10-25):
 | GitHub Actions secrets              | <https://docs.github.com/en/actions/concepts/security/secrets>           |
 | Devin secrets and site cookies      | <https://docs.devin.ai/product-guides/secrets>                           |
 | Devin environment best practices    | <https://docs.devin.ai/enterprise/environment-management/best-practices> |
-| SOPS                                | <https://github.com/age-sops/sops>                                       |
+| SOPS                                | <https://github.com/getsops/sops>                                        |
 | 1Password service accounts          | <https://www.1password.dev/service-accounts>                             |
 
 Re-verified 2026-10-26 (DEV-109 daily pass; Workers limits, Workers pricing,
@@ -1308,6 +1311,19 @@ only while clients cannot edit them (client-edited automation, embedding,
 or white-label use requires a commercial license); Docker Compose is on
 major version 5 (v5.6.1, 2026-10-21; the v2 line ended at 2.40.3 on
 2025-10-30).
+
+Re-verified 2026-10-31 (DEV-109 daily pass; D11, D14, D15 external anchors:
+shadcn components.json, namespace, and authentication docs plus the registry
+directory, getsops/sops releases, FiloSottile/age releases, ollama/ollama
+releases; Secrets Store facts already covered by the 2026-10-29 pass).
+Corrections applied: the source-register SOPS URL moved from the archived
+age-sops/sops repo (last push 2025-01-06) to getsops/sops in this file and
+CONFIG-AND-SECRETS; D11 authentication methods extended (basic auth and
+query-param credentials, GitHub registries as `owner/repo` sources with `gh`
+or `GH_TOKEN` for private repos) and registry items now list AI prompts.
+No decision change: D11, D14, and D15 all hold. Tooling anchors: SOPS
+v3.13.3 (2026-07-23, active), age v1.3.2 (2026-08-29; v1.3.0 added
+post-quantum recipients), Ollama v0.40.13 (2026-10-28, very active).
 
 ---
 
@@ -1520,6 +1536,7 @@ normalized_json(event))` over deterministically serialized JSON (sorted
 | 3d       | 2026-10-28 | Waykeeper research transfer (DEV-118): PII-IN-REPOSITORIES companion document; PII-in-documents row in Section 11; source-terms and license-gate guardrails in Section 10; terms-violation and memory-poisoning threats plus the OWASP agentic mapping note in Section 14; audit event integrity rules and two new events in Appendix B; open-question default mechanism in Section 20; research-stage agent registry convention in 15.5; D12 reference implementation; release-flag expiry enforcement in 23.3 |
 | 3e       | 2026-10-29 | DEV-109 daily verification: Sections 4.8-4.12 re-verified against official docs; corrections: Workflows completed-state retention now defaults to 7 days on Paid for Workflows created on or after 2026-09-10 (30-day max), R2 has no S3-style object versioning, Secrets Store scopes expanded, Workers Logs carries the 2026-12-01 Observability rates, Email Sending priced and public beta, Vinext 1.0 confirmed as the recommended Next.js path |
 | 3f       | 2026-10-30 | DEV-109 daily verification: Section 1.2 second-platform candidates re-verified (Neuro-SAN, n8n, Docker Compose); no corrections; decision-grade notes added to Section 22 (Neuro-SAN pre-1.0, n8n SUL client-editing boundary, Compose on major v5) |
+| 3g       | 2026-10-31 | DEV-109 daily verification: D11, D14, D15 re-verified against upstream docs and repos; corrections: SOPS source-register URL moved from archived age-sops/sops to getsops/sops (MEGA-PLAN and CONFIG-AND-SECRETS), D11 registry auth methods and GitHub-registry sources added, registry items gained AI prompts; all three decisions hold |
 
 _Living document: revise after each phase exit and each quarterly fact
 verification. Decisions become ADRs in `md/adr/` of implementing
