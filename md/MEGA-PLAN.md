@@ -205,7 +205,7 @@ consequence for projects, and how compliance is checked.
 | 7   | Secrets never touch files in production               | File-borne secrets leak through VCS, CI logs, and agent context                            | `wrangler secret` or Secrets Store bindings in prod; `.dev.vars` locally and gitignored                                                      | Pre-push secret scan (lab `devartslab-code-review` skill)                    |
 | 8   | Prefer bindings over REST calls                       | REST adds auth, latency, and rate-limit exposure (1200 requests per 5 minutes per account) | Reach D1, KV, R2, Queues, AI, Secrets through bindings; REST only for control-plane automation                                               | Review flag per `workers-best-practices` anti-patterns                       |
 | 9   | Protect against runaway spend                         | Agents and public endpoints can create denial-of-wallet                                    | `limits.cpu_ms` set deliberately; AI Gateway spend limits; Queues backpressure; WAF rate limits                                              | Cost guardrail checklist at launch gate                                      |
-| 10  | Documents are the interface between humans and agents | Agents act on what is written; undocumented intent is lost                                 | `md/` document set in every repo, this plan as root; ADRs for every deviation                                                                | INDEX and ADR presence in repository audit                              |
+| 10  | Documents are the interface between humans and agents | Agents act on what is written; undocumented intent is lost                                 | `md/` document set in every repo, this plan as root; ADRs for every deviation                                                                | INDEX and ADR presence in repository audit                                   |
 | 11  | Build once, reuse everywhere                          | Work rebuilt per project is work paid for twice and maintained in parallel                 | Libraries, packages, UI components, and agent rules ship through the lab registry (D11); per-app copies need an ADR                          | Duplication review: a second implementation of the same concern fails review |
 | 12  | Identity is a variable, never a literal               | A business name, domain, or brand hardcoded into the estate makes a rename a rewrite       | One identity manifest per product; brand strings resolve from it (D12)                                                                       | CI check for forbidden literals outside the manifest                         |
 | 13  | No silent fallback                                    | A degradation nobody can see is a defect that persists                                     | Every automatic switch (provider, cache, limit, feature) surfaces in the administrative interface and emits an audit event (Section 23, D15) | Fallback test: trigger each one and observe it in the interface              |
@@ -241,7 +241,7 @@ the following decision matrix.
 | Relational application data, SQL, cross-entity queries    | D1                                        | Read-heavy, globally read, lightweight RDBMS without ops                                         | 10 GB per database (not raisable); single-threaded per database; 50,000 databases per account on Paid (raisable by request); read replication available; Time Travel 30 days on Paid |
 | Per-entity state with strict consistency and coordination | Durable Objects (SQLite)                  | Coordination atom per tenant, session, room, or agent; transactional storage; WebSockets; alarms | 10 GB per object; unlimited objects; soft limit about 1,000 requests per second per object; 500 classes per account on Paid                                                          |
 | Configuration, routing metadata, sessions, feature data   | Workers KV                                | Read-heavy, eventually consistent, hot keys served from cache in roughly 0.5 to 10 ms            | 1 write per second per key; not for counters or anything needing immediate consistency                                                                                               |
-| Files, uploads, artifacts, exports, logs                  | R2                                        | Object storage, S3-compatible, no egress fees, per-object strong consistency                     | Pair with D1 for searchable metadata; no S3-style object versioning (as of 2026-10-29); retain prior versions under distinct keys or a D1 index                                                                       |
+| Files, uploads, artifacts, exports, logs                  | R2                                        | Object storage, S3-compatible, no egress fees, per-object strong consistency                     | Pair with D1 for searchable metadata; no S3-style object versioning (as of 2026-10-29); retain prior versions under distinct keys or a D1 index                                      |
 | Existing Postgres or MySQL                                | Hyperdrive                                | Keep an existing database or need single databases above D1's ceiling                            | Connection pooling and caching from Workers; works with Neon, Supabase, PlanetScale                                                                                                  |
 | Semantic search, embeddings                               | Vectorize                                 | Custom retrieval with control over embeddings and indexes                                        | Pair with Workers AI embeddings; use AI Search when a managed RAG pipeline is enough                                                                                                 |
 | Custom usage metrics, tenant metering                     | Analytics Engine                          | High-cardinality time series written from Workers, queried by SQL                                | Natural fit for per-client metering (open question Q1)                                                                                                                               |
@@ -265,13 +265,13 @@ Lab guidance:
 
 ### 4.3 Coordination, asynchronous work, and durable execution
 
-| Product         | Role                                                               | When to choose                                                                                        | Constraints                                                                                                                                                                                                                                                                   |
-| --------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Durable Objects | Single-threaded coordination with transactional storage and alarms | Shared state per entity, WebSockets, ordering, scheduled per-entity work                              | One alarm per object (set replaces existing); alarm handler 15 min wall; do not build one global object                                                                                                                                                                       |
-| Queues          | Decouple producers and consumers; absorb bursts                    | Background jobs, fan-out, retries with backoff, dead-letter handling                                  | 128 KB message; 100 retries; batch up to 100; 5,000 messages per second per queue; retention up to 14 days; 25 GB backlog; consumer 15 min wall; 250 concurrent push consumers                                                                                                |
+| Product         | Role                                                               | When to choose                                                                                        | Constraints                                                                                                                                                                                                                                                                                                                                                                      |
+| --------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Durable Objects | Single-threaded coordination with transactional storage and alarms | Shared state per entity, WebSockets, ordering, scheduled per-entity work                              | One alarm per object (set replaces existing); alarm handler 15 min wall; do not build one global object                                                                                                                                                                                                                                                                          |
+| Queues          | Decouple producers and consumers; absorb bursts                    | Background jobs, fan-out, retries with backoff, dead-letter handling                                  | 128 KB message; 100 retries; batch up to 100; 5,000 messages per second per queue; retention up to 14 days; 25 GB backlog; consumer 15 min wall; 250 concurrent push consumers                                                                                                                                                                                                   |
 | Workflows       | Durable multi-step execution with retries, sleeps, events          | Business processes that must resume after failure: delivery pipeline, onboarding, approvals           | 1 MiB per step result and event payload; 1 GB persisted state per instance on Paid; 10,000 steps default (25,000 max); `step.sleep` up to 365 days; completed state retention 7-day default on Paid for Workflows created on or after 2026-09-10 (30-day max, set via `retention`; 3 days Free); bindings attachable to Workers for Platforms user Workers (verified 2026-10-29) |
-| Agents SDK      | Durable Object based agent runtime                                 | Stateful agents with RPC, scheduling, built-in queue, retries, `AgentWorkflow`, MCP client and server | Requires `nodejs_compat`; each agent class is its own DO binding plus SQLite migration                                                                                                                                                                                        |
-| Cron Triggers   | Time-based entry points                                            | Scheduled kick-off of Queues or Workflows                                                             | Keep the cron handler thin; the work belongs to a Workflow or queue consumer                                                                                                                                                                                                  |
+| Agents SDK      | Durable Object based agent runtime                                 | Stateful agents with RPC, scheduling, built-in queue, retries, `AgentWorkflow`, MCP client and server | Requires `nodejs_compat`; each agent class is its own DO binding plus SQLite migration                                                                                                                                                                                                                                                                                           |
+| Cron Triggers   | Time-based entry points                                            | Scheduled kick-off of Queues or Workflows                                                             | Keep the cron handler thin; the work belongs to a Workflow or queue consumer                                                                                                                                                                                                                                                                                                     |
 
 Design rule: Queues for "do this later, maybe many times"; Workflows for
 "do these steps in order and survive failure"; Durable Objects for "keep
@@ -304,7 +304,7 @@ Workflows detail that shapes the lab's lifecycle model (Section 8):
 
 Notes that affect design:
 
-- AI Gateway's `/compat` OpenAI-compatible endpoint is deprecated for
+- AI Gateway's `/compat` endpoint is deprecated for
   single-model calls. Dynamic routes can still be invoked through it for
   existing integrations, but new integrations should use the REST API
   (`/ai/v1/chat/completions`) or the `ai` binding; the Universal Endpoint is
@@ -374,57 +374,57 @@ Secrets handling facts that affect process:
 
 ### 4.8 Observability
 
-| Signal or tool                  | Role                                                             | Facts (verified 2026-10-29)                                                                                                                                                            |
-| ------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Signal or tool                  | Role                                                             | Facts (verified 2026-10-29)                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Workers Logs                    | Stored, searchable invocation logs                               | Until 2026-11-30: Paid 20 million events per month included, then USD 0.60 per million; 7-day retention; Free 200,000 per day, 3 days. From 2026-12-01: shared Observability pool with Traces, AI Gateway logs, and others; Paid 50 GB ingestion plus 10 GB-month storage included per cycle, then 0.25 per GB and 0.10 per GB-month; Free 0.5 GB per day, 7-day retention |
-| Workers Traces                  | Request flow and dependency latency                              | Enable `observability.traces.enabled` explicitly; the top-level flag alone does not enable traces                                                                                      |
-| Real-time logs, `wrangler tail` | Live debugging                                                   | Not a persistence mechanism                                                                                                                                                            |
-| Tail Workers                    | Custom processing of trace events (filter, redact, route)        | Receives events from dynamic dispatch and user Workers too; use for the lab audit trail (Appendix B)                                                                                   |
-| Workers Logpush                 | Deliver trace events to external storage                         | Paid only; 10 million requests per month included, then USD 0.05 per million; charged after filtering and sampling                                                                     |
-| OpenTelemetry export            | Push logs and traces to an OTel destination                      | Check first whether this replaces a custom Tail Worker                                                                                                                                 |
-| Analytics Engine                | Custom metrics and per-tenant usage                              | SQL-queryable; use for metering and spend dashboards                                                                                                                                   |
-| Agents SDK diagnostics          | `diagnostics_channel` events for state, RPC, schedule, lifecycle | Feed into the same audit path                                                                                                                                                          |
+| Workers Traces                  | Request flow and dependency latency                              | Enable `observability.traces.enabled` explicitly; the top-level flag alone does not enable traces                                                                                                                                                                                                                                                                          |
+| Real-time logs, `wrangler tail` | Live debugging                                                   | Not a persistence mechanism                                                                                                                                                                                                                                                                                                                                                |
+| Tail Workers                    | Custom processing of trace events (filter, redact, route)        | Receives events from dynamic dispatch and user Workers too; use for the lab audit trail (Appendix B)                                                                                                                                                                                                                                                                       |
+| Workers Logpush                 | Deliver trace events to external storage                         | Paid only; 10 million requests per month included, then USD 0.05 per million; charged after filtering and sampling                                                                                                                                                                                                                                                         |
+| OpenTelemetry export            | Push logs and traces to an OTel destination                      | Check first whether this replaces a custom Tail Worker                                                                                                                                                                                                                                                                                                                     |
+| Analytics Engine                | Custom metrics and per-tenant usage                              | SQL-queryable; use for metering and spend dashboards                                                                                                                                                                                                                                                                                                                       |
+| Agents SDK diagnostics          | `diagnostics_channel` events for state, RPC, schedule, lifecycle | Feed into the same audit path                                                                                                                                                                                                                                                                                                                                              |
 
 ### 4.9 Security and access
 
-| Product or feature                             | Role                                                       | Notes (verified 2026-10-29)                                                                                                                                     |
-| ---------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Worker secrets                                 | Per-Worker encrypted values                                | Default for credentials owned by one Worker                                                                                                                     |
+| Product or feature                             | Role                                                       | Notes (verified 2026-10-29)                                                                                                                                                                              |
+| ---------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Worker secrets                                 | Per-Worker encrypted values                                | Default for credentials owned by one Worker                                                                                                                                                              |
 | Secrets Store                                  | Account-level secrets shared across Workers and AI Gateway | Binding type `secrets_store_secrets`; binding requires Super Administrator or Secrets Store Deployer role; secret scopes now include `workers`, `ai_gateway`, `dex`, `access`, `containers`, `websearch` |
-| Cloudflare Access                              | Identity-aware access to apps, Previews, internal tools    | Protect every Preview URL and every internal lab surface                                                                                                        |
-| Turnstile                                      | Bot verification for forms                                 | Server-side Siteverify required                                                                                                                                 |
-| WAF, rate limiting, Bot Management, API Shield | Edge protection                                            | Rate limit public agent endpoints; schema-validate APIs                                                                                                         |
-| Roles, scopes, API tokens                      | Least privilege for humans, CI, and agents                 | Scope tokens to the Worker or product; never paste token values into chat or logs                                                                               |
-| Workers security model                         | Isolate-based separation                                   | The basis for Dynamic Workers; read before trusting any sandbox claim                                                                                           |
+| Cloudflare Access                              | Identity-aware access to apps, Previews, internal tools    | Protect every Preview URL and every internal lab surface                                                                                                                                                 |
+| Turnstile                                      | Bot verification for forms                                 | Server-side Siteverify required                                                                                                                                                                          |
+| WAF, rate limiting, Bot Management, API Shield | Edge protection                                            | Rate limit public agent endpoints; schema-validate APIs                                                                                                                                                  |
+| Roles, scopes, API tokens                      | Least privilege for humans, CI, and agents                 | Scope tokens to the Worker or product; never paste token values into chat or logs                                                                                                                        |
+| Workers security model                         | Isolate-based separation                                   | The basis for Dynamic Workers; read before trusting any sandbox claim                                                                                                                                    |
 
 ### 4.10 Data governance products
 
-| Capability                      | Product or feature                                                                      | Facts (verified 2026-10-29)                                                                                       |
-| ------------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| Point-in-time recovery, SQL     | D1 Time Travel                                                                          | Always on; restore to any minute in the last 30 days on Paid (7 on Free); 10 restores per 10 minutes per database |
-| Object versioning               | R2                                                                                      | No S3-style object versioning (GetBucketVersioning is a stub); version via distinct keys or a D1 index            |
-| Regional processing and storage | Data Localization Suite                                                                 | Evaluate against actual contractual requirements; enterprise feature set                                          |
+| Capability                      | Product or feature                                                                      | Facts (verified 2026-10-29)                                                                                                                 |
+| ------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Point-in-time recovery, SQL     | D1 Time Travel                                                                          | Always on; restore to any minute in the last 30 days on Paid (7 on Free); 10 restores per 10 minutes per database                           |
+| Object versioning               | R2                                                                                      | No S3-style object versioning (GetBucketVersioning is a stub); version via distinct keys or a D1 index                                      |
+| Regional processing and storage | Data Localization Suite                                                                 | Evaluate against actual contractual requirements; enterprise feature set                                                                    |
 | Prompt and response privacy     | AI Gateway DLP, Guardrails, logging controls, Zero Data Retention under Unified Billing | Decide what may be stored before enabling payload logging; ZDR applies only to Unified Billing requests with Cloudflare-managed credentials |
-| Log retention                   | Workers Logs 7 days; Logpush to R2 for longer                                           | Retention beyond 7 days requires export                                                                           |
-| Workflow history                | 7-day default on Paid for Workflows created on or after 2026-09-10; 30-day max          | Export durable records before expiry                                                                              |
+| Log retention                   | Workers Logs 7 days; Logpush to R2 for longer                                           | Retention beyond 7 days requires export                                                                                                     |
+| Workflow history                | 7-day default on Paid for Workflows created on or after 2026-09-10; 30-day max          | Export durable records before expiry                                                                                                        |
 
 ### 4.11 Frontend
 
-| Need                   | Product                   | Notes (verified 2026-10-29)                                                                                            |
-| ---------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Static site or SPA     | Workers Static Assets     | Free asset requests; SPA not-found handling available                                                                  |
-| React or framework app | Cloudflare Vite plugin    | Runs the Worker in `workerd` during Vite dev; generates output config at build                                         |
+| Need                   | Product                   | Notes (verified 2026-10-29)                                                                                                                                              |
+| ---------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Static site or SPA     | Workers Static Assets     | Free asset requests; SPA not-found handling available                                                                                                                    |
+| React or framework app | Cloudflare Vite plugin    | Runs the Worker in `workerd` during Vite dev; generates output config at build                                                                                           |
 | Next.js                | vinext                    | Vinext 1.0 released 2026-09-28; Cloudflare-recommended over OpenNext for new projects (OpenNext for existing apps with compatibility gaps); check feature parity per app |
-| Images, video          | Cloudflare Images, Stream | Only when the requirement exists (Principle 6)                                                                         |
+| Images, video          | Cloudflare Images, Stream | Only when the requirement exists (Principle 6)                                                                                                                           |
 
 ### 4.12 Communications
 
-| Need                       | Product         | Notes (verified 2026-10-29)                                  |
-| -------------------------- | --------------- | ------------------------------------------------------------ |
+| Need                       | Product         | Notes (verified 2026-10-29)                                                                                                                                                         |
+| -------------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Transactional email        | Email Service   | Email Sending in public beta (2026-04-16); Paid only for arbitrary recipients: 3,000 per month included, then 0.35 per 1,000; sends to verified account addresses free on all plans |
-| Inbound routing            | Email Routing   | Domain addresses to mailboxes                                |
-| Inbound processing in code | Email Workers   | Agents SDK has an email channel with secure reply resolution |
-| Web push                   | Agents SDK push | VAPID-based from agents                                      |
+| Inbound routing            | Email Routing   | Domain addresses to mailboxes                                                                                                                                                       |
+| Inbound processing in code | Email Workers   | Agents SDK has an email channel with secure reply resolution                                                                                                                        |
+| Web push                   | Agents SDK push | VAPID-based from agents                                                                                                                                                             |
 
 ## 5. Reference architecture and project tiers
 
@@ -854,33 +854,33 @@ mechanism precisely enough to be verified in configuration review.
 
 ## 11. Data governance
 
-| Area              | Rule                                                                                                                                | Platform facts                                                                                     |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Classification    | Every dataset carries one class: public, internal, client-confidential, regulated. Class is recorded in `md/governance/`            | Drives logging policy, AI Gateway DLP, residency                                                   |
-| Client boundaries | Client data lives in per-client resources (dedicated Worker, DO namespace, or D1 database); no cross-client reads by default        | WfP untrusted mode isolates cache and `request.cf`; DO per tenant isolates state                   |
-| Residency         | Regional requirements use Data Localization Suite where contracted; otherwise documented as global                                  | Enterprise feature set; evaluate per contract                                                      |
+| Area              | Rule                                                                                                                                | Platform facts                                                                                                                |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Classification    | Every dataset carries one class: public, internal, client-confidential, regulated. Class is recorded in `md/governance/`            | Drives logging policy, AI Gateway DLP, residency                                                                              |
+| Client boundaries | Client data lives in per-client resources (dedicated Worker, DO namespace, or D1 database); no cross-client reads by default        | WfP untrusted mode isolates cache and `request.cf`; DO per tenant isolates state                                              |
+| Residency         | Regional requirements use Data Localization Suite where contracted; otherwise documented as global                                  | Enterprise feature set; evaluate per contract                                                                                 |
 | Retention         | Periods defined per class; deletion is a Workflow step with an audit event, not an ad hoc script                                    | Workers Logs 7 days; Workflow state 7-day default on Paid (30-day max); Queues messages up to 14 days; D1 Time Travel 30 days |
-| Auditability      | Reads and writes to client-confidential or regulated data emit audit events                                                         | Tail Worker plus application events (Appendix B)                                                   |
-| Backups           | D1 Time Travel plus periodic export to R2; key-versioned R2 artifacts; restore tested at every launch gate                          | Time Travel is always on; 10 restores per 10 minutes per database                                  |
-| AI data           | Prompts and responses classified like any dataset; payload logging in AI Gateway only for classes that permit it; ZDR where offered | Provider retention is not controlled by gateway log settings                                       |
-| Secrets           | Never in code, CI files, or agent context; rotation through Secrets Store with an audit event                                       | Scoped secrets; deployer role required to bind                                                     |
-| PII in documents  | Committed content carries `{{PII:<TOKEN>}}` placeholders; real values resolve from the operator-held store via a gitignored overlay | Mechanism in PII-IN-REPOSITORIES.md; a sentinel agent scans on edit and at publish gates           |
+| Auditability      | Reads and writes to client-confidential or regulated data emit audit events                                                         | Tail Worker plus application events (Appendix B)                                                                              |
+| Backups           | D1 Time Travel plus periodic export to R2; key-versioned R2 artifacts; restore tested at every launch gate                          | Time Travel is always on; 10 restores per 10 minutes per database                                                             |
+| AI data           | Prompts and responses classified like any dataset; payload logging in AI Gateway only for classes that permit it; ZDR where offered | Provider retention is not controlled by gateway log settings                                                                  |
+| Secrets           | Never in code, CI files, or agent context; rotation through Secrets Store with an audit event                                       | Scoped secrets; deployer role required to bind                                                                                |
+| PII in documents  | Committed content carries `{{PII:<TOKEN>}}` placeholders; real values resolve from the operator-held store via a gitignored overlay | Mechanism in PII-IN-REPOSITORIES.md; a sentinel agent scans on edit and at publish gates                                      |
 
 ## 12. Cost model
 
 All figures USD, verified 2026-10-26, Workers Paid plan (Standard usage
 model). Re-verify before quoting (Section 2.2).
 
-| Item                                                      | Included per month          | Overage                                                                  |
-| --------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------ |
-| Subscription                                              | n/a                         | 5.00 minimum per account                                                 |
-| Worker requests                                           | 10 million                  | 0.30 per additional million                                              |
-| Worker CPU time                                           | 30 million CPU-ms           | 0.02 per additional million CPU-ms                                       |
-| Static asset requests                                     | Unlimited                   | Free                                                                     |
-| Egress and bandwidth                                      | Unlimited                   | Free                                                                     |
+| Item                                                      | Included per month          | Overage                                                                                                                                                           |
+| --------------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Subscription                                              | n/a                         | 5.00 minimum per account                                                                                                                                          |
+| Worker requests                                           | 10 million                  | 0.30 per additional million                                                                                                                                       |
+| Worker CPU time                                           | 30 million CPU-ms           | 0.02 per additional million CPU-ms                                                                                                                                |
+| Static asset requests                                     | Unlimited                   | Free                                                                                                                                                              |
+| Egress and bandwidth                                      | Unlimited                   | Free                                                                                                                                                              |
 | Workers Logs                                              | 20 million events           | 0.60 per additional million; from 2026-12-01 shared Observability pool: 50 GB ingestion plus 10 GB-month storage included, then 0.25 per GB and 0.10 per GB-month |
-| Workers Logpush                                           | 10 million requests         | 0.05 per additional million                                              |
-| D1, KV, R2, DO, Queues, Workflows, AI Gateway, Workers AI | Product-specific allotments | See each product's pricing page (Section 22)                             |
+| Workers Logpush                                           | 10 million requests         | 0.05 per additional million                                                                                                                                       |
+| D1, KV, R2, DO, Queues, Workflows, AI Gateway, Workers AI | Product-specific allotments | See each product's pricing page (Section 22)                                                                                                                      |
 
 Worked estimates (requests and CPU only; storage and AI billed separately):
 
@@ -900,49 +900,49 @@ in the Design ADR set.
 
 Consolidated from Section 4; every number is a hint to re-verify.
 
-| Product               | Limit                                        | Workers Paid value                                          |
-| --------------------- | -------------------------------------------- | ----------------------------------------------------------- |
-| Workers               | CPU per request                              | 30 s default, 5 min max                                     |
-| Workers               | Memory per isolate                           | 128 MB                                                      |
-| Workers               | Subrequests per request                      | 10,000                                                      |
-| Workers               | Workers per account                          | 500                                                         |
-| Workers               | Worker size                                  | 64 MiB                                                      |
-| Workers               | Cron Triggers per account                    | 250                                                         |
-| Workers               | Wall time: HTTP                              | Unlimited while client connected                            |
-| Workers               | Wall time: cron, queue consumer, DO alarm    | 15 min                                                      |
-| Workers               | `waitUntil` after response                   | 30 s                                                        |
-| Static Assets         | Files per version; file size                 | 100,000; 25 MiB                                             |
-| D1                    | Database size                                | 10 GB (not raisable)                                        |
-| D1                    | Databases per account; storage per account   | 50,000 (raisable); 1 TB (raisable)                          |
-| D1                    | Time Travel                                  | 30 days; 10 restores per 10 min per database                |
-| D1                    | Queries per invocation                       | 1,000                                                       |
-| D1                    | Columns; bound params; statement length      | 100; 100; 100 KB                                            |
-| D1                    | Max row, string, or BLOB size                | 2 MB                                                        |
-| D1                    | Query duration                               | 30 s                                                        |
-| Durable Objects       | Storage per object                           | 10 GB (SQLite)                                              |
-| Durable Objects       | Classes per account                          | 500                                                         |
-| Durable Objects       | Throughput per object                        | about 1,000 requests per second (soft)                      |
-| Durable Objects       | WebSocket message (received)                 | 32 MiB                                                      |
-| Queues                | Queues per account                           | 10,000                                                      |
-| Queues                | Message size; retries; batch                 | 128 KB; 100; 100 messages                                   |
-| Queues                | Throughput per queue                         | 5,000 messages per second                                   |
-| Queues                | Retention; backlog                           | up to 14 days; 25 GB                                        |
-| Queues                | Concurrent push consumers                    | 250                                                         |
-| Workflows             | Step result; event payload                   | 1 MiB each                                                  |
-| Workflows             | Persisted state per instance                 | 1 GB                                                        |
-| Workflows             | Steps per instance                           | 10,000 default, 25,000 max                                  |
-| Workflows             | Sleep                                        | 365 days                                                    |
+| Product               | Limit                                        | Workers Paid value                                                                          |
+| --------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Workers               | CPU per request                              | 30 s default, 5 min max                                                                     |
+| Workers               | Memory per isolate                           | 128 MB                                                                                      |
+| Workers               | Subrequests per request                      | 10,000                                                                                      |
+| Workers               | Workers per account                          | 500                                                                                         |
+| Workers               | Worker size                                  | 64 MiB                                                                                      |
+| Workers               | Cron Triggers per account                    | 250                                                                                         |
+| Workers               | Wall time: HTTP                              | Unlimited while client connected                                                            |
+| Workers               | Wall time: cron, queue consumer, DO alarm    | 15 min                                                                                      |
+| Workers               | `waitUntil` after response                   | 30 s                                                                                        |
+| Static Assets         | Files per version; file size                 | 100,000; 25 MiB                                                                             |
+| D1                    | Database size                                | 10 GB (not raisable)                                                                        |
+| D1                    | Databases per account; storage per account   | 50,000 (raisable); 1 TB (raisable)                                                          |
+| D1                    | Time Travel                                  | 30 days; 10 restores per 10 min per database                                                |
+| D1                    | Queries per invocation                       | 1,000                                                                                       |
+| D1                    | Columns; bound params; statement length      | 100; 100; 100 KB                                                                            |
+| D1                    | Max row, string, or BLOB size                | 2 MB                                                                                        |
+| D1                    | Query duration                               | 30 s                                                                                        |
+| Durable Objects       | Storage per object                           | 10 GB (SQLite)                                                                              |
+| Durable Objects       | Classes per account                          | 500                                                                                         |
+| Durable Objects       | Throughput per object                        | about 1,000 requests per second (soft)                                                      |
+| Durable Objects       | WebSocket message (received)                 | 32 MiB                                                                                      |
+| Queues                | Queues per account                           | 10,000                                                                                      |
+| Queues                | Message size; retries; batch                 | 128 KB; 100; 100 messages                                                                   |
+| Queues                | Throughput per queue                         | 5,000 messages per second                                                                   |
+| Queues                | Retention; backlog                           | up to 14 days; 25 GB                                                                        |
+| Queues                | Concurrent push consumers                    | 250                                                                                         |
+| Workflows             | Step result; event payload                   | 1 MiB each                                                                                  |
+| Workflows             | Persisted state per instance                 | 1 GB                                                                                        |
+| Workflows             | Steps per instance                           | 10,000 default, 25,000 max                                                                  |
+| Workflows             | Sleep                                        | 365 days                                                                                    |
 | Workflows             | Completed state retention                    | 7-day default on Paid for Workflows created on or after 2026-09-10; 30-day max; 3 days Free |
-| Workflows             | Concurrent instances per account             | 50,000 (waiting instances excluded)                         |
-| Workflows             | Instance creation rate                       | 300 per second per account; 100 per second per workflow     |
-| Workflows             | Workers for Platforms namespaces             | Workflow bindings attachable to user Workers                |
-| Previews              | Previews per Worker; deployments per Preview | 500; 100                                                    |
-| Workers for Platforms | Workers per namespace; tags per Worker       | Unlimited; 8                                                |
-| Workers for Platforms | Gradual deployments; cron triggers           | Not supported; not on user Workers (use DO alarms)          |
-| Dynamic Workers       | Concurrent distinct per I/O context          | 4 per Worker request; 10 per Durable Object; Paid only      |
-| Workers Logs          | Retention                                    | 7 days                                                      |
-| Cloudflare API        | Rate limit                                   | 1,200 requests per 5 min per account; 200 per second per IP |
-| Request body          | Maximum (zone plan dependent)                | 100 MB Free and Pro; 200 MB Business; up to 5 GB Enterprise |
+| Workflows             | Concurrent instances per account             | 50,000 (waiting instances excluded)                                                         |
+| Workflows             | Instance creation rate                       | 300 per second per account; 100 per second per workflow                                     |
+| Workflows             | Workers for Platforms namespaces             | Workflow bindings attachable to user Workers                                                |
+| Previews              | Previews per Worker; deployments per Preview | 500; 100                                                                                    |
+| Workers for Platforms | Workers per namespace; tags per Worker       | Unlimited; 8                                                                                |
+| Workers for Platforms | Gradual deployments; cron triggers           | Not supported; not on user Workers (use DO alarms)                                          |
+| Dynamic Workers       | Concurrent distinct per I/O context          | 4 per Worker request; 10 per Durable Object; Paid only                                      |
+| Workers Logs          | Retention                                    | 7 days                                                                                      |
+| Cloudflare API        | Rate limit                                   | 1,200 requests per 5 min per account; 200 per second per IP                                 |
+| Request body          | Maximum (zone plan dependent)                | 100 MB Free and Pro; 200 MB Business; up to 5 GB Enterprise                                 |
 
 ## 14. Threat model for agentic applications
 
@@ -966,6 +966,7 @@ extend both in `md/security/threat-model.md`.
 | Third-party terms violation              | An agent or job accesses a source whose terms restrict automated access | Source cards declare a dated terms status (allowed, restricted, forbidden, unknown); forbidden sources are import-only; per-source rate limits and kill switches |
 | Memory and context poisoning             | Untrusted or inferred facts silently become authoritative               | Facts carry trust level and provenance; quarantined until human-promoted; invalidation preserves history instead of overwriting                                  |
 | Over-trust in sandbox claims             | Assuming isolation that the runtime does not provide                    | Read the Workers security model and sandbox security docs before each new execution pattern                                                                      |
+| Unauthenticated public agent ingress     | Anonymous visitors driving model spend or extracting internal content   | Per-session rate and token caps; Turnstile on ingress; agent context limited to public information; AI Gateway spend limits, rate limiting, and Guardrails       |
 
 Projects that operate agents should also map their threat model to the
 OWASP Top 10 for Agentic Applications: goal hijack, tool misuse, identity
@@ -979,10 +980,11 @@ project can lift as the starting table.
 
 ### 15.1 Two agent populations
 
-| Population     | Purpose                                                           | Runtime                                                                              | Examples                                                       |
-| -------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| Lab operations | Run the lab: intake, research, estimates, indexes, Linear hygiene | Agents SDK on lab Workers; local CLI agents (Devin, Claude Code) for repository work | Intake agent, research agent, index regenerator, cost reviewer |
-| Delivery       | Assist client projects end to end                                 | Agents SDK inside the project (T2) or lab-owned agents acting on client repos        | Scaffold agent, migration agent, QA agent, runbook writer      |
+| Population     | Purpose                                                           | Runtime                                                                                       | Examples                                                       |
+| -------------- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Lab operations | Run the lab: intake, research, estimates, indexes, Linear hygiene | Agents SDK on lab Workers; local CLI agents (Devin, Claude Code) for repository work          | Intake agent, research agent, index regenerator, cost reviewer |
+| Delivery       | Assist client projects end to end                                 | Agents SDK inside the project (T2) or lab-owned agents acting on client repos                 | Scaffold agent, migration agent, QA agent, runbook writer      |
+| Public-facing  | Serve external visitors on lab and client surfaces                | Agents SDK Durable Object per visitor session; thin channel Workers as ingress (Section 15.6) | devartslab.com concierge, client site assistants               |
 
 ### 15.2 Shared contracts
 
@@ -1034,6 +1036,34 @@ Repository: <https://github.com/docker/docker-agent> (formerly
   between them is checked, not assumed away. A repository that must be
   self-contained distributes its skills through a registry, not through a
   copied file.
+
+### 15.6 Public-facing agents
+
+The third population: agents that serve external, unauthenticated visitors
+on lab and client surfaces. The channel-agnostic-core rule applies: the
+agent holds instructions, tools, state, and evals; each channel is a thin
+ingress that verifies, normalizes, and forwards.
+
+- One Agents SDK Durable Object per visitor session (D2 option A). Session
+  identity comes from a first-party cookie minted on first contact;
+  channel adapters map external thread IDs (SMS sender, Slack thread,
+  email address) to DO names.
+- Channels are thin Workers or routes on an existing Worker: verify the
+  channel signature, normalize the message, forward to the DO, relay the
+  reply. Adding a channel never touches the agent core.
+- Inference routes through AI Gateway per D15 and Section 4.4: spend
+  limits, rate limiting, Guardrails, logging. The model identifier is a
+  runtime-selectable value administered through the lab interface
+  (Section 23.5); no model name is committed to plans, code, or
+  repository config.
+- Unauthenticated ingress controls: input length caps, per-session message
+  and token caps, Turnstile on anonymous endpoints when abuse warrants it,
+  agent context restricted to public information only.
+- Approval under 15.2 applies to outbound side effects (emails sent,
+  tickets filed, purchases); answering questions needs none.
+- Every public-facing agent gets an agent card (15.2) and its own threat
+  rows under Section 14. First implementation: the devartslab.com
+  concierge in devartslab-site (DEV-133).
 
 ## 16. Repository scaffold (master layout)
 
@@ -1135,13 +1165,13 @@ and chosen dispatch model. Its implementation is out of scope here.
 
 ## 17. Phased roadmap
 
-| Phase               | Deliverable                                                                                                                                                           | Exit criteria (measurable)                                                                                                                             |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1. Spine            | One Worker with Static Assets, one Durable Object class, one Queue, one D1 database, Workers Logs and Traces on, Tail Worker attached, running dev to preview to prod | `wrangler dev` and production both green; Preview URL behind Access; test suite passes locally and in Preview; audit events visible for one request    |
-| 2. First client app | A real T1 application delivered on the spine                                                                                                                          | Client served on a custom domain; restore from Time Travel rehearsed; cost within estimate for first month; runbook delivered                          |
-| 3. Agent layer      | Agents SDK plus AI Gateway plus the Delivery Workflow (intake to scaffold)                                                                                            | Agent run killed mid-process resumes correctly; every tool call present in audit log; spend limit triggers and is observed; approval gate exercised    |
-| 4. Client dispatch  | Workers for Platforms for a flagship client under D1 option C                                                                                                         | Second client deployed with per-client CPU limits and Outbound Worker; no cross-client data path found in review; metering visible in Analytics Engine |
-| 5. Public framework | This document set plus the scaffold generator published under the chosen license                                                                                      | An external developer scaffolds and deploys a T1 app unaided in under one day; license, SECURITY.md, and contribution guide present                    |
+| Phase               | Deliverable                                                                                                                                                           | Exit criteria (measurable)                                                                                                                                                                                     |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1. Spine            | One Worker with Static Assets, one Durable Object class, one Queue, one D1 database, Workers Logs and Traces on, Tail Worker attached, running dev to preview to prod | `wrangler dev` and production both green; Preview URL behind Access; test suite passes locally and in Preview; audit events visible for one request                                                            |
+| 2. First client app | A real T1 application delivered on the spine                                                                                                                          | Client served on a custom domain; restore from Time Travel rehearsed; cost within estimate for first month; runbook delivered                                                                                  |
+| 3. Agent layer      | Agents SDK plus AI Gateway plus the Delivery Workflow (intake to scaffold); devartslab.com concierge as the first public-facing agent (Section 15.6)                  | Agent run killed mid-process resumes correctly; every tool call present in audit log; spend limit triggers and is observed; approval gate exercised; concierge answers a visitor end to end through AI Gateway |
+| 4. Client dispatch  | Workers for Platforms for a flagship client under D1 option C                                                                                                         | Second client deployed with per-client CPU limits and Outbound Worker; no cross-client data path found in review; metering visible in Analytics Engine                                                         |
+| 5. Public framework | This document set plus the scaffold generator published under the chosen license                                                                                      | An external developer scaffolds and deploys a T1 app unaided in under one day; license, SECURITY.md, and contribution guide present                                                                            |
 
 ## 18. Risks and mitigations
 
@@ -1534,9 +1564,11 @@ normalized_json(event))` over deterministically serialized JSON (sorted
 | 3b       | 2026-10-26 | DEV-109 daily verification: Sections 4.1-4.3, 4.7, 12, 13 re-verified against official docs; D1 databases-per-account marked raisable; cheat sheet gained D1 row size, Queues per account, Workflows concurrent instances                                                                                                                                                                                                                                                                                       |
 | 3c       | 2026-10-27 | DEV-109 daily verification: Sections 4.4-4.6 re-verified against official docs; corrections: Workflow bindings attachable in WfP namespaces, AI Gateway dynamic routes via REST API, MCP SSE deprecated, WfP user Workers lack cron triggers; Flagship marked public beta; cheat sheet and risk table updated; D1 re-review flagged to DEV-109                                                                                                                                                                  |
 | 3d       | 2026-10-28 | Waykeeper research transfer (DEV-118): PII-IN-REPOSITORIES companion document; PII-in-documents row in Section 11; source-terms and license-gate guardrails in Section 10; terms-violation and memory-poisoning threats plus the OWASP agentic mapping note in Section 14; audit event integrity rules and two new events in Appendix B; open-question default mechanism in Section 20; research-stage agent registry convention in 15.5; D12 reference implementation; release-flag expiry enforcement in 23.3 |
-| 3e       | 2026-10-29 | DEV-109 daily verification: Sections 4.8-4.12 re-verified against official docs; corrections: Workflows completed-state retention now defaults to 7 days on Paid for Workflows created on or after 2026-09-10 (30-day max), R2 has no S3-style object versioning, Secrets Store scopes expanded, Workers Logs carries the 2026-12-01 Observability rates, Email Sending priced and public beta, Vinext 1.0 confirmed as the recommended Next.js path |
-| 3f       | 2026-10-30 | DEV-109 daily verification: Section 1.2 second-platform candidates re-verified (Neuro-SAN, n8n, Docker Compose); no corrections; decision-grade notes added to Section 22 (Neuro-SAN pre-1.0, n8n SUL client-editing boundary, Compose on major v5) |
-| 3g       | 2026-10-31 | DEV-109 daily verification: D11, D14, D15 re-verified against upstream docs and repos; corrections: SOPS source-register URL moved from archived age-sops/sops to getsops/sops (MEGA-PLAN and CONFIG-AND-SECRETS), D11 registry auth methods and GitHub-registry sources added, registry items gained AI prompts; all three decisions hold |
+| 3e       | 2026-10-29 | DEV-109 daily verification: Sections 4.8-4.12 re-verified against official docs; corrections: Workflows completed-state retention now defaults to 7 days on Paid for Workflows created on or after 2026-09-10 (30-day max), R2 has no S3-style object versioning, Secrets Store scopes expanded, Workers Logs carries the 2026-12-01 Observability rates, Email Sending priced and public beta, Vinext 1.0 confirmed as the recommended Next.js path                                                            |
+| 3f       | 2026-10-30 | DEV-109 daily verification: Section 1.2 second-platform candidates re-verified (Neuro-SAN, n8n, Docker Compose); no corrections; decision-grade notes added to Section 22 (Neuro-SAN pre-1.0, n8n SUL client-editing boundary, Compose on major v5)                                                                                                                                                                                                                                                             |
+| 3g       | 2026-10-31 | DEV-109 daily verification: D11, D14, D15 re-verified against upstream docs and repos; corrections: SOPS source-register URL moved from archived age-sops/sops to getsops/sops (MEGA-PLAN and CONFIG-AND-SECRETS), D11 registry auth methods and GitHub-registry sources added, registry items gained AI prompts; all three decisions hold                                                                                                                                                                      |
+| 3h       | 2026-10-30 | Public-facing agent population (DEV-133): third row in 15.1, new Section 15.6 (channel-agnostic core, thin ingress Workers, DO per visitor session, AI Gateway routing, unauthenticated-ingress controls); public agent ingress row in Section 14; Phase 3 gains the devartslab.com concierge as pathfinder                                                                                                                                                                                                     |
+| 3i       | 2026-10-30 | Public-agent model selection moved to the administrative surface (DEV-133): 15.6 inference rule amended so the model identifier is a runtime-selectable administered value; no model names committed to plans, code, or config                                                                                                                                                                                                                                                                                  |
 
 _Living document: revise after each phase exit and each quarterly fact
 verification. Decisions become ADRs in `md/adr/` of implementing
