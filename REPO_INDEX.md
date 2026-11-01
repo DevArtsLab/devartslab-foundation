@@ -37,6 +37,7 @@
 | File                  | What it is                                                                                                                                                                                                                                                                            |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `LAB-THREAT-MODEL.md` | Lab-wide baseline threat model, revision 2: repository classes, trust boundaries (incl. agents and tooling), assets, attacker profiles A1-A6, per-boundary threat enumeration, charter controls, owner decisions, controls-vs-reality gap register with row lifecycle, open proposals |
+| `SECURITY-TXT.md`     | `security.txt` convention (RFC 9116): contents, Expires renewal rule, Worker inline-serving pattern, verification                                                                                                                                                                     |
 
 ## Not yet present (tracked as open items)
 
